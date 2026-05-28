@@ -168,7 +168,7 @@ Fully responsive design optimized for Android and iOS browsers. Built and tested
 
 ## 👨‍💻 Author
 
-**Shelby** — [@Shelby6898](https://github.com/Shelby6898)
+**Elphaz Shelby** — [@Shelby6898](https://github.com/Shelby6898)
 
 Built for county government asset management in Kenya 🇰🇪
 
