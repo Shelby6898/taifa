@@ -14,11 +14,12 @@ const VALID_STATUSES   = ['open', 'assigned', 'in-progress', 'resolved', 'closed
 router.get('/', authenticate, async (req, res, next) => {
   try {
     let query = db.collection('tickets').orderBy('createdAt', 'desc');
-    if (req.user.role !== 'admin') {
-      query = query.where('userId', '==', req.user.id);
-    }
     const snap = await query.get();
-    const tickets = snap.docs.map(d => {
+    let docs = snap.docs;
+    if (req.user.role !== 'admin') {
+      docs = docs.filter(d => d.data().userId === req.user.userId);
+    }
+    const tickets = docs.map(d => {
       const data = d.data();
       return {
         id: d.id, ...data,
@@ -41,8 +42,10 @@ router.post('/', authenticate, async (req, res, next) => {
       return res.status(400).json({ error: 'title and description are required.' });
     }
 
-    const userDoc = await db.collection('users').doc(req.user.id).get();
-    const requesterName = userDoc.exists ? userDoc.data().name : req.user.email;
+    const userDoc = await db.collection('users').doc(req.user.userId).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+    const requesterName = userData.name || 'Unknown';
+    const requesterEmail = userData.email || '';
 
     const finalCategory = VALID_CATEGORIES.includes(category) ? category : 'other';
     const finalPriority = VALID_PRIORITIES.includes(priority) ? priority : 'medium';
@@ -53,8 +56,8 @@ router.post('/', authenticate, async (req, res, next) => {
       priority:  finalPriority,
       requester: requesterName,
       userName:  requesterName,
-      userEmail: req.user.email,
-      userId:    req.user.id,
+      userEmail: requesterEmail,
+      userId:    req.user.userId,
       status:    'open',
       assignedTo: null, assignedToName: null, assignedToEmail: null,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -63,7 +66,7 @@ router.post('/', authenticate, async (req, res, next) => {
 
     // ── 1. Confirmation email to the user ──
     await sendEmail({
-      to: req.user.email,
+      to: requesterEmail,
       subject: `✅ Ticket Received: ${title}`,
       html: `
         <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
@@ -99,7 +102,7 @@ router.post('/', authenticate, async (req, res, next) => {
             <div style="background:#f1f5f9;border-radius:8px;padding:16px;margin:20px 0;">
               <p style="margin:0 0 8px;"><strong>Ticket ID:</strong> ${docRef.id}</p>
               <p style="margin:0 0 8px;"><strong>Title:</strong> ${title}</p>
-              <p style="margin:0 0 8px;"><strong>Submitted by:</strong> ${requesterName} (${req.user.email})</p>
+              <p style="margin:0 0 8px;"><strong>Submitted by:</strong> ${requesterName} (${requesterEmail})</p>
               <p style="margin:0 0 8px;"><strong>Category:</strong> ${finalCategory}</p>
               <p style="margin:0 0 8px;"><strong>Priority:</strong> ${finalPriority}</p>
               <p style="margin:0 0 8px;"><strong>Device:</strong> ${device || '—'}</p>

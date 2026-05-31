@@ -16,7 +16,7 @@ router.get('/', authenticate, async (req, res, next) => {
 
     // Only allow ticket owner or admin
     const ticket = ticketDoc.data();
-    if (req.user.role !== 'admin' && ticket.userId !== req.user.id) {
+    if (req.user.role !== 'admin' && ticket.userId !== req.user.userId) {
       return res.status(403).json({ error: 'Access denied.' });
     }
 
@@ -50,13 +50,13 @@ router.post('/', authenticate, async (req, res, next) => {
     const ticket = ticketDoc.data();
 
     // Only allow ticket owner or admin
-    if (req.user.role !== 'admin' && ticket.userId !== req.user.id) {
+    if (req.user.role !== 'admin' && ticket.userId !== req.user.userId) {
       return res.status(403).json({ error: 'Access denied.' });
     }
 
     const comment = {
       message: message.trim(),
-      authorId:   req.user.id,
+      authorId:   req.user.userId,
       authorName: req.user.name || req.user.email,
       authorRole: req.user.role,
       createdAt:  admin.firestore.FieldValue.serverTimestamp()
