@@ -2,13 +2,14 @@ const express = require('express');
 const router = express.Router({ mergeParams: true });
 const { db, admin } = require('../config/firebase');
 const { sendEmail } = require('../services/email');
-const { authenticate } = require('../middleware/authMiddleware');
+const { authenticate, authorizeRoles } = require('../middleware/authMiddleware');
+const canComment = authorizeRoles('admin', 'manager', 'viewer', 'user');
 
 // ─────────────────────────────────────────
 //  GET COMMENTS FOR A TICKET
 //  GET /api/tickets/:id/comments
 // ─────────────────────────────────────────
-router.get('/', authenticate, async (req, res, next) => {
+router.get('/', authenticate, canComment, async (req, res, next) => {
   try {
     const ticketRef = db.collection('tickets').doc(req.params.id);
     const ticketDoc = await ticketRef.get();
@@ -16,7 +17,7 @@ router.get('/', authenticate, async (req, res, next) => {
 
     // Only allow ticket owner or admin
     const ticket = ticketDoc.data();
-    if (req.user.role !== 'admin' && ticket.userId !== req.user.userId) {
+    if (!['admin','manager'].includes(req.user.role) && ticket.userId !== req.user.userId) {
       return res.status(403).json({ error: 'Access denied.' });
     }
 
@@ -36,7 +37,7 @@ router.get('/', authenticate, async (req, res, next) => {
 //  ADD COMMENT
 //  POST /api/tickets/:id/comments
 // ─────────────────────────────────────────
-router.post('/', authenticate, async (req, res, next) => {
+router.post('/', authenticate, canComment, async (req, res, next) => {
   try {
     const { message } = req.body;
     if (!message || !message.trim()) {
@@ -50,14 +51,18 @@ router.post('/', authenticate, async (req, res, next) => {
     const ticket = ticketDoc.data();
 
     // Only allow ticket owner or admin
-    if (req.user.role !== 'admin' && ticket.userId !== req.user.userId) {
+    if (!['admin','manager'].includes(req.user.role) && ticket.userId !== req.user.userId) {
       return res.status(403).json({ error: 'Access denied.' });
     }
+
+    // Fetch author name from DB
+    const authorDoc = await db.collection('users').doc(req.user.userId).get();
+    const authorName = authorDoc.exists ? authorDoc.data().name : 'Unknown';
 
     const comment = {
       message: message.trim(),
       authorId:   req.user.userId,
-      authorName: req.user.name || req.user.email,
+      authorName: authorName,
       authorRole: req.user.role,
       createdAt:  admin.firestore.FieldValue.serverTimestamp()
     };
@@ -78,7 +83,7 @@ router.post('/', authenticate, async (req, res, next) => {
               <p>An ICT team member has replied to your ticket.</p>
               <div style="background:#f1f5f9;border-radius:8px;padding:16px;margin:20px 0;">
                 <p style="margin:0 0 8px;"><strong>Ticket:</strong> ${ticket.title}</p>
-                <p style="margin:0 0 8px;"><strong>Reply from:</strong> ${req.user.name || req.user.email}</p>
+                <p style="margin:0 0 8px;"><strong>Reply from:</strong> ${authorName}</p>
                 <div style="background:#ffffff;border-left:4px solid #6366f1;padding:12px;border-radius:4px;margin-top:12px;">
                   <p style="margin:0;color:#334155;">${message.trim()}</p>
                 </div>
@@ -104,7 +109,7 @@ router.post('/', authenticate, async (req, res, next) => {
               <p>A user has replied to a ticket.</p>
               <div style="background:#f1f5f9;border-radius:8px;padding:16px;margin:20px 0;">
                 <p style="margin:0 0 8px;"><strong>Ticket:</strong> ${ticket.title}</p>
-                <p style="margin:0 0 8px;"><strong>From:</strong> ${req.user.name || req.user.email}</p>
+                <p style="margin:0 0 8px;"><strong>From:</strong> ${authorName}</p>
                 <div style="background:#ffffff;border-left:4px solid #22d3ee;padding:12px;border-radius:4px;margin-top:12px;">
                   <p style="margin:0;color:#334155;">${message.trim()}</p>
                 </div>

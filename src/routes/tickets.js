@@ -5,6 +5,7 @@ const { sendEmail } = require('../services/email');
 const { authenticate } = require('../middleware/authMiddleware');
 const { authorizeRoles } = require('../middleware/authMiddleware');
 const isAdmin = authorizeRoles('admin');
+const canSubmit = authorizeRoles('admin', 'manager', 'viewer', 'user');
 
 const VALID_CATEGORIES = ['hardware', 'software', 'network', 'account', 'other'];
 const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
@@ -16,7 +17,7 @@ router.get('/', authenticate, async (req, res, next) => {
     let query = db.collection('tickets').orderBy('createdAt', 'desc');
     const snap = await query.get();
     let docs = snap.docs;
-    if (req.user.role !== 'admin') {
+    if (!['admin', 'manager'].includes(req.user.role)) {
       docs = docs.filter(d => d.data().userId === req.user.userId);
     }
     const tickets = docs.map(d => {
@@ -35,9 +36,9 @@ router.get('/', authenticate, async (req, res, next) => {
 });
 
 // CREATE TICKET
-router.post('/', authenticate, async (req, res, next) => {
+router.post('/', authenticate, canSubmit, async (req, res, next) => {
   try {
-    const { title, description, category, priority, device } = req.body;
+    const { title, description, category, priority, device, department } = req.body;
     if (!title || !description) {
       return res.status(400).json({ error: 'title and description are required.' });
     }
