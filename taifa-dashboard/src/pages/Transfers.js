@@ -9,6 +9,8 @@ export default function Transfers() {
   const [form, setForm] = useState({ assetId: "", ward: "", department: "", reason: "", transferredBy: "" });
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const canEdit = ["admin", "manager"].includes(user.role);
 
   useEffect(() => {
     loadAll();
@@ -54,14 +56,14 @@ export default function Transfers() {
     <div style={{ padding: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
         <h2 style={{ margin: 0 }}>🔄 Transfers</h2>
-        <button onClick={() => setShowForm(!showForm)} style={styles.btn}>
+        {canEdit && <button onClick={() => setShowForm(!showForm)} style={styles.btn}>
           {showForm ? "Cancel" : "+ New Transfer"}
-        </button>
+        </button>}
       </div>
 
       {message && <p style={{ marginTop: 10, color: message.startsWith("✅") ? "green" : "red" }}>{message}</p>}
 
-      {showForm && (
+      {showForm && canEdit && (
         <div style={styles.form}>
           <h3 style={{ marginTop: 0 }}>Transfer Asset</h3>
           <select style={styles.input} value={form.assetId} onChange={e => setForm({ ...form, assetId: e.target.value })}>

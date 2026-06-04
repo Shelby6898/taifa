@@ -60,6 +60,12 @@ exports.createMaintenanceRecord = async (req, res) => {
     const assetDoc = await db.collection("assets").doc(assetId).get();
     if (!assetDoc.exists) return res.status(404).json({ success: false, message: "Asset not found" });
 
+    // Manager can only schedule maintenance for assets in their department
+    const assetData = assetDoc.data();
+    if (req.user.role !== "admin" && req.user.department && assetData.department !== req.user.department) {
+      return res.status(403).json({ success: false, message: "You can only schedule maintenance for assets in your department" });
+    }
+
     const record = {
       assetId,
       type,

@@ -121,6 +121,11 @@ exports.transferAsset = async (req, res) => {
     if (!doc.exists) return res.status(404).json({ success: false, message: "Asset not found" });
 
     const oldData = doc.data();
+
+    // Manager can only transfer assets from their own department
+    if (req.user.role !== "admin" && req.user.department && oldData.department !== req.user.department) {
+      return res.status(403).json({ success: false, message: "You can only transfer assets in your department" });
+    }
     const updateData = { ward: ward || oldData.ward, department: department || oldData.department, updatedAt: admin.firestore.Timestamp.now() };
     await docRef.update(updateData);
     await db.collection("asset_audit").add({
