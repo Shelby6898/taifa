@@ -68,7 +68,7 @@ exports.getAuditReport = async (req, res) => {
       .get();
 
     const userCache = {};
-    const logs = await Promise.all(snapshot.docs.map(async doc => {
+    let logs = await Promise.all(snapshot.docs.map(async doc => {
       const data = doc.data();
       const userId = data.changedBy;
       if (userId && userId !== 'system' && !userCache[userId]) {
@@ -84,6 +84,14 @@ exports.getAuditReport = async (req, res) => {
         timestamp: data.timestamp?.toDate().toISOString()
       };
     }));
+
+    // Managers only see their department's audit logs
+    if (req.user.role === 'manager' && req.user.department) {
+      // Get asset IDs in their department
+      const assetsSnap = await db.collection('assets').where('department', '==', req.user.department).get();
+      const deptAssetIds = new Set(assetsSnap.docs.map(d => d.id));
+      logs = logs.filter(l => deptAssetIds.has(l.assetId));
+    }
 
     res.status(200).json({ success: true, count: logs.length, data: logs });
   } catch (error) {
@@ -101,6 +109,33 @@ exports.getTicketAuditReport = async (req, res) => {
       const data = doc.data();
       const userId = data.changedBy;
       if (userId && !userCache[userId]) {
+        try {
+          const userDoc = await db.collection('users').doc(userId).get();
+          userCache[userId] = userDoc.exists ? userDoc.data().name : userId;
+        } catch(e) { userCache[userId] = userId; }
+      }
+      return {
+        id: doc.id,
+        ...data,
+        changedByName: userCache[userId] || data.changedByName || 'system',
+        timestamp: data.timestamp ? data.timestamp.toDate().toISOString() : null
+      };
+    }));
+    res.status(200).json({ success: true, count: logs.length, data: logs });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// User audit log
+exports.getUserAuditReport = async (req, res) => {
+  try {
+    const snapshot = await db.collection('user_audit').limit(100).get();
+    const userCache = {};
+    const logs = await Promise.all(snapshot.docs.map(async doc => {
+      const data = doc.data();
+      const userId = data.changedBy;
+      if (userId && userId !== 'system' && !userCache[userId]) {
         try {
           const userDoc = await db.collection('users').doc(userId).get();
           userCache[userId] = userDoc.exists ? userDoc.data().name : userId;

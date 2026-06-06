@@ -7,7 +7,10 @@ import * as XLSX from "xlsx";
 
 export default function Reports() {
   const [summary, setSummary] = useState(null);
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const isViewer = user.role === "viewer";
   const [audit, setAudit] = useState([]);
+  const [userAudit, setUserAudit] = useState([]);
   const [tab, setTab] = useState("summary");
   const [loading, setLoading] = useState(true);
 
@@ -15,12 +18,14 @@ export default function Reports() {
 
   const loadAll = async () => {
     try {
-      const [s, a] = await Promise.all([
+      const [s, a, u] = await Promise.all([
         api.get("/reports/summary"),
-        api.get("/reports/audit")
+        !isViewer ? api.get("/reports/audit").catch(() => ({ data: { data: [] } })) : Promise.resolve({ data: { data: [] } }),
+        user.role === "admin" ? api.get("/reports/user-audit").catch(() => ({ data: { data: [] } })) : Promise.resolve({ data: { data: [] } })
       ]);
       setSummary(s.data.data);
       setAudit(a.data.data);
+      setUserAudit(u.data.data || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -175,7 +180,8 @@ export default function Reports() {
     { key: "byWard", label: "By Ward" },
     { key: "byDepartment", label: "By Dept" },
     { key: "byType", label: "By Type" },
-    { key: "audit", label: "Audit Log" }
+    ...(!isViewer ? [{ key: "audit", label: "Audit Log" }] : []),
+    ...(user.role === "admin" ? [{ key: "userAudit", label: "User Audit" }] : [])
   ];
 
   const isSummaryTab = ["summary", "byWard", "byDepartment", "byType"].includes(tab);
@@ -300,6 +306,40 @@ export default function Reports() {
                   <td style={styles.td}>{log.timestamp ? new Date(log.timestamp).toLocaleDateString() : "-"}</td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab === "userAudit" && (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 500 }}>
+            <thead style={{ background: "#06122b", color: "white" }}>
+              <tr>
+                <th style={styles.th}>Action</th>
+                <th style={styles.th}>User</th>
+                <th style={styles.th}>By</th>
+                <th style={styles.th}>Note</th>
+                <th style={styles.th}>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {userAudit.map(log => (
+                <tr key={log.id} style={{ borderBottom: "1px solid #eee" }}>
+                  <td style={styles.td}>
+                    <span style={{ background: log.action === "user_created" ? "#10b981" : log.action === "user_deleted" ? "#ef4444" : "#6366f1", color: "white", padding: "2px 8px", borderRadius: 4, fontSize: 12 }}>
+                      {log.action}
+                    </span>
+                  </td>
+                  <td style={styles.td}>{log.newData?.name || log.oldData?.name || log.userId}</td>
+                  <td style={styles.td}>{log.changedByName || log.changedBy}</td>
+                  <td style={styles.td}>{log.note || "-"}</td>
+                  <td style={styles.td}>{log.timestamp ? new Date(log.timestamp).toLocaleDateString() : "-"}</td>
+                </tr>
+              ))}
+              {userAudit.length === 0 && (
+                <tr><td colSpan={5} style={{ textAlign: "center", padding: 20, color: "#6b7280" }}>No user audit records yet</td></tr>
+              )}
             </tbody>
           </table>
         </div>

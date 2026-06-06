@@ -91,6 +91,17 @@ exports.createMaintenanceRecord = async (req, res) => {
       updatedAt: admin.firestore.Timestamp.now()
     });
 
+    // Audit log
+    await db.collection("asset_audit").add({
+      assetId,
+      action: "maintenance_scheduled",
+      changedBy: req.user.userId || "system",
+      reason: record.type + " maintenance scheduled",
+      oldData: null,
+      newData: { ...record, id: docRef.id },
+      timestamp: admin.firestore.Timestamp.now()
+    });
+
     res.status(201).json({ success: true, id: docRef.id, message: "Maintenance record created" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -124,6 +135,18 @@ exports.updateMaintenanceRecord = async (req, res) => {
     }
 
     await docRef.update(updateData);
+
+    // Audit log
+    await db.collection("asset_audit").add({
+      assetId: doc.data().assetId,
+      action: updateData.status === "completed" ? "maintenance_completed" : "maintenance_updated",
+      changedBy: req.user.userId || "system",
+      reason: updateData.status ? "Status changed to " + updateData.status : "Maintenance record updated",
+      oldData: doc.data(),
+      newData: updateData,
+      timestamp: admin.firestore.Timestamp.now()
+    });
+
     res.json({ success: true, message: "Maintenance record updated" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -146,6 +169,18 @@ exports.deleteMaintenanceRecord = async (req, res) => {
     }
 
     await db.collection("maintenance").doc(req.params.id).delete();
+
+    // Audit log
+    await db.collection("asset_audit").add({
+      assetId: doc.data().assetId,
+      action: "maintenance_deleted",
+      changedBy: req.user.userId || "system",
+      reason: "Maintenance record deleted",
+      oldData: doc.data(),
+      newData: null,
+      timestamp: admin.firestore.Timestamp.now()
+    });
+
     res.json({ success: true, message: "Maintenance record deleted" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

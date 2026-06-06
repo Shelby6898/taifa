@@ -53,6 +53,15 @@ exports.register = async (req, res) => {
       await db.collection("users")
       .add(user);
 
+    await db.collection("user_audit").add({
+      userId: docRef.id,
+      action: "user_created",
+      changedBy: req.user?.userId || "system",
+      note: "User " + name + " created with role: " + (role || "viewer"),
+      newData: { name, email, role: role || "viewer", department: department || null },
+      timestamp: admin.firestore.Timestamp.now()
+    });
+
     res.status(201).json({
       success: true,
       userId: docRef.id
@@ -171,11 +180,25 @@ exports.updateUser = async (req, res) => {
     if (!doc.exists) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
+    const oldData = doc.data();
+    const newRole = role || oldData.role;
+    const newDept = department || oldData.department;
     await docRef.update({
-      role: role || doc.data().role,
-      department: department || doc.data().department,
+      role: newRole,
+      department: newDept,
       updatedAt: admin.firestore.Timestamp.now()
     });
+
+    await db.collection("user_audit").add({
+      userId: id,
+      action: "user_updated",
+      changedBy: req.user?.userId || "system",
+      note: "Role: " + oldData.role + " → " + newRole + " | Dept: " + oldData.department + " → " + newDept,
+      oldData: { role: oldData.role, department: oldData.department },
+      newData: { role: newRole, department: newDept },
+      timestamp: admin.firestore.Timestamp.now()
+    });
+
     res.json({ success: true, message: "User updated successfully" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -189,7 +212,18 @@ exports.deleteUser = async (req, res) => {
     if (!doc.exists) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
+    const userData = doc.data();
     await db.collection("users").doc(id).delete();
+
+    await db.collection("user_audit").add({
+      userId: id,
+      action: "user_deleted",
+      changedBy: req.user?.userId || "system",
+      note: "User " + userData.name + " deleted",
+      oldData: { name: userData.name, role: userData.role, department: userData.department },
+      timestamp: admin.firestore.Timestamp.now()
+    });
+
     res.json({ success: true, message: "User deleted successfully" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

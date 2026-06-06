@@ -199,6 +199,13 @@ exports.restoreAsset = async (req, res) => {
       timestamp: admin.firestore.Timestamp.now()
     });
 
+    await db.collection("asset_audit").add({
+      assetId: id, action: "restored",
+      changedBy: req.user.userId || "system",
+      oldData, newData: { ...oldData, ...updateData },
+      timestamp: admin.firestore.Timestamp.now()
+    });
+
     res.status(200).json({ success: true, message: "Asset restored successfully", assetId: id });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

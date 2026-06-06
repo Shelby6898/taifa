@@ -230,6 +230,16 @@ exports.approveTransfer = async (req, res) => {
       triggeredBy: approverName
     });
 
+    await db.collection("asset_audit").add({
+      assetId: transfer.assetId,
+      action: "transfer_approved",
+      changedBy: req.user.userId,
+      reason: transfer.reason,
+      oldData: { ward: transfer.fromWard, department: transfer.fromDepartment },
+      newData: { ward: transfer.toWard, department: transfer.toDepartment },
+      timestamp: admin.firestore.Timestamp.now()
+    });
+
     res.status(200).json({
       success: true,
       message: "Transfer approved and executed successfully."
@@ -306,6 +316,16 @@ exports.denyTransfer = async (req, res) => {
       assetId: transfer.assetId,
       assetName: transfer.assetName,
       triggeredBy: approverName
+    });
+
+    await db.collection("asset_audit").add({
+      assetId: transfer.assetId,
+      action: "transfer_denied",
+      changedBy: req.user.userId,
+      reason: reason || "No reason provided",
+      oldData: { status: "pending" },
+      newData: { status: "denied", deniedReason: reason },
+      timestamp: admin.firestore.Timestamp.now()
     });
 
     res.status(200).json({
