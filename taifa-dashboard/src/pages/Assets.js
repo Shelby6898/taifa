@@ -22,10 +22,21 @@ export default function Assets() {
     value: "", assignedTo: "", location: "", acquisitionDate: ""
   });
 
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const canEdit = ["admin", "manager"].includes(user.role);
+  const user      = JSON.parse(localStorage.getItem("user") || "{}");
+  const canEdit   = ["admin", "manager"].includes(user.role);
+  const canView   = user.role === "viewer";
+  const isAdmin   = user.role === "admin";
+  const isManager = user.role === "manager";
 
   useEffect(() => { loadAssets(); }, []);
+
+  // Auto-fill department for managers when create form opens
+  useEffect(() => {
+    if (isManager && user.department) {
+      setForm(f => ({ ...f, department: user.department }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showForm]);
 
   useEffect(() => {
     let list = [...assets];
@@ -54,7 +65,11 @@ export default function Assets() {
     }
   };
 
-  const resetForm = () => setForm({ name: "", type: "", ward: "", department: "", value: "", assignedTo: "", location: "", acquisitionDate: "" });
+  const resetForm = () => setForm({
+    name: "", type: "", ward: "",
+    department: isManager ? user.department : "",
+    value: "", assignedTo: "", location: "", acquisitionDate: ""
+  });
 
   const handleCreate = async () => {
     if (!form.name || !form.type || !form.ward || !form.department) {
@@ -141,19 +156,8 @@ export default function Assets() {
     img.src = "data:image/svg+xml;base64," + btoa(svgStr);
   };
 
-  // Build QR data string for an asset
   const getQRData = (asset) => {
-    return [
-      `Asset: ${asset.name}`,
-      `Code: ${asset.assetCode}`,
-      `Type: ${asset.type}`,
-      `Dept: ${asset.department}`,
-      `Ward: ${asset.ward}`,
-      `Value: KES ${asset.value}`,
-      `Status: ${asset.status}`,
-      `Assigned: ${asset.assignedTo || "N/A"}`,
-      `Location: ${asset.location || "N/A"}`
-    ].join("\n");
+    return `http://localhost:4000/assets/view/${asset.assetId}`;
   };
 
   if (loading) return <p style={{ padding: 20 }}>Loading assets...</p>;
@@ -186,10 +190,19 @@ export default function Assets() {
               <option value="">-- Ward *</option>
               {WARDS.map(w => <option key={w} value={w}>{w}</option>)}
             </select>
-            <select style={styles.input} value={form.department} onChange={e => setForm({ ...form, department: e.target.value })}>
-              <option value="">-- Department *</option>
-              {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
+            {isManager ? (
+              <input
+                style={{ ...styles.input, background: "#f1f5f9", color: "#64748b", cursor: "not-allowed" }}
+                value={user.department}
+                readOnly
+                title="Managers can only create assets in their department"
+              />
+            ) : (
+              <select style={styles.input} value={form.department} onChange={e => setForm({ ...form, department: e.target.value })}>
+                <option value="">-- Department *</option>
+                {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            )}
             <input style={styles.input} placeholder="Value (KES)" type="number" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} />
             <input style={styles.input} placeholder="Assigned To" value={form.assignedTo} onChange={e => setForm({ ...form, assignedTo: e.target.value })} />
             <input style={styles.input} placeholder="Location" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} />
@@ -214,10 +227,10 @@ export default function Assets() {
       {/* Stats */}
       <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
         {[
-          { label: "Total", value: filtered.length, color: "#06122b" },
-          { label: "Active", value: filtered.filter(a => a.status === "active").length, color: "#16a34a" },
-          { label: "Deleted", value: filtered.filter(a => a.status === "deleted").length, color: "#dc2626" },
-          { label: "Total Value", value: `KES ${filtered.reduce((s, a) => s + (a.value || 0), 0).toLocaleString()}`, color: "#2563eb" }
+          { label: "Total",       value: filtered.length,                                                              color: "#06122b" },
+          { label: "Active",      value: filtered.filter(a => a.status === "active").length,                           color: "#16a34a" },
+          { label: "Deleted",     value: filtered.filter(a => a.status === "deleted").length,                          color: "#dc2626" },
+          { label: "Total Value", value: `KES ${filtered.reduce((s, a) => s + (a.value || 0), 0).toLocaleString()}`,   color: "#2563eb" }
         ].map(s => (
           <div key={s.label} style={{ background: s.color, color: "white", borderRadius: 8, padding: "10px 16px", fontSize: 13 }}>
             <div style={{ fontWeight: "bold", fontSize: 18 }}>{s.value}</div>
@@ -254,10 +267,10 @@ export default function Assets() {
             </div>
             <div style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
               <button style={styles.qrBtn} onClick={() => setQrAsset(asset)}>QR</button>
-              {canEdit && asset.status !== "deleted" && (
+              {canEdit && !canView && asset.status !== "deleted" && (
                 <button style={styles.editBtn} onClick={() => { setEditAsset({ ...asset }); setMessage(""); }}>Edit</button>
               )}
-              {canEdit && (asset.status === "deleted"
+              {isAdmin && (asset.status === "deleted"
                 ? <button style={styles.restoreBtn} onClick={() => handleRestore(asset)}>Restore</button>
                 : <button style={styles.deleteBtn} onClick={() => handleDelete(asset)}>Delete</button>
               )}
@@ -280,9 +293,18 @@ export default function Assets() {
               <select style={styles.input} value={editAsset.ward} onChange={e => setEditAsset({ ...editAsset, ward: e.target.value })}>
                 {WARDS.map(w => <option key={w} value={w}>{w}</option>)}
               </select>
-              <select style={styles.input} value={editAsset.department} onChange={e => setEditAsset({ ...editAsset, department: e.target.value })}>
-                {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
+              {isManager ? (
+                <input
+                  style={{ ...styles.input, background: "#f1f5f9", color: "#64748b", cursor: "not-allowed" }}
+                  value={editAsset.department}
+                  readOnly
+                  title="Managers cannot change asset department"
+                />
+              ) : (
+                <select style={styles.input} value={editAsset.department} onChange={e => setEditAsset({ ...editAsset, department: e.target.value })}>
+                  {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              )}
               <input style={styles.input} placeholder="Value (KES)" type="number" value={editAsset.value} onChange={e => setEditAsset({ ...editAsset, value: Number(e.target.value) })} />
               <input style={styles.input} placeholder="Assigned To" value={editAsset.assignedTo || ""} onChange={e => setEditAsset({ ...editAsset, assignedTo: e.target.value })} />
               <input style={styles.input} placeholder="Location" value={editAsset.location || ""} onChange={e => setEditAsset({ ...editAsset, location: e.target.value })} />
@@ -301,8 +323,6 @@ export default function Assets() {
           <div style={{ ...styles.modal, alignItems: "center", textAlign: "center" }}>
             <h3 style={{ margin: 0 }}>QR Code</h3>
             <p style={{ margin: "4px 0 16px", color: "#6b7280", fontSize: 13 }}>{qrAsset.name} — {qrAsset.assetCode}</p>
-
-            {/* Hidden QRs for all sizes, visible one for display */}
             <div style={{ background: "white", padding: 16, borderRadius: 12, border: "1px solid #e5e7eb", display: "inline-block" }}>
               <QRCodeSVG
                 id={`qr-${qrAsset.assetId}`}
@@ -312,7 +332,6 @@ export default function Assets() {
                 includeMargin={true}
               />
             </div>
-
             <div style={{ marginTop: 12, fontSize: 13, color: "#374151", display: "flex", flexDirection: "column", gap: 4 }}>
               <span>🏷️ {qrAsset.type}</span>
               <span>🏢 {qrAsset.department} • 📍 {qrAsset.ward}</span>
@@ -320,11 +339,9 @@ export default function Assets() {
               {qrAsset.assignedTo && <span>👤 {qrAsset.assignedTo}</span>}
               {qrAsset.location && <span>📌 {qrAsset.location}</span>}
             </div>
-
             <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 8 }}>
               Scan this QR code to view asset details
             </p>
-
             <div style={{ display: "flex", gap: 10, marginTop: 12, justifyContent: "center" }}>
               <button style={styles.btn} onClick={() => downloadQR(qrAsset)}>⬇️ Download PNG</button>
               <button style={styles.cancelBtn} onClick={() => setQrAsset(null)}>Close</button>
@@ -337,17 +354,17 @@ export default function Assets() {
 }
 
 const styles = {
-  btn: { background: "#06122b", color: "white", border: "none", padding: "10px 18px", borderRadius: 6, cursor: "pointer", fontSize: 14 },
-  cancelBtn: { background: "#e5e7eb", color: "#374151", border: "none", padding: "10px 18px", borderRadius: 6, cursor: "pointer", fontSize: 14 },
-  editBtn: { background: "#2563eb", color: "white", border: "none", padding: "7px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13 },
-  deleteBtn: { background: "#dc2626", color: "white", border: "none", padding: "7px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13 },
+  btn:        { background: "#06122b", color: "white", border: "none", padding: "10px 18px", borderRadius: 6, cursor: "pointer", fontSize: 14 },
+  cancelBtn:  { background: "#e5e7eb", color: "#374151", border: "none", padding: "10px 18px", borderRadius: 6, cursor: "pointer", fontSize: 14 },
+  editBtn:    { background: "#2563eb", color: "white", border: "none", padding: "7px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13 },
+  deleteBtn:  { background: "#dc2626", color: "white", border: "none", padding: "7px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13 },
   restoreBtn: { background: "#16a34a", color: "white", border: "none", padding: "7px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13 },
-  qrBtn: { background: "#7c3aed", color: "white", border: "none", padding: "7px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: "bold" },
-  form: { background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: 16, marginTop: 16, display: "flex", flexDirection: "column", gap: 12 },
-  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10 },
-  input: { padding: "10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 14, width: "100%", boxSizing: "border-box" },
-  card: { background: "white", border: "1px solid #e5e7eb", borderRadius: 8, padding: 14, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" },
-  badge: { color: "white", fontSize: 11, padding: "2px 8px", borderRadius: 12, fontWeight: "bold" },
-  overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 },
-  modal: { background: "white", borderRadius: 12, padding: 24, width: "100%", maxWidth: 420, maxHeight: "90vh", overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }
+  qrBtn:      { background: "#7c3aed", color: "white", border: "none", padding: "7px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: "bold" },
+  form:       { background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: 16, marginTop: 16, display: "flex", flexDirection: "column", gap: 12 },
+  grid:       { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10 },
+  input:      { padding: "10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 14, width: "100%", boxSizing: "border-box" },
+  card:       { background: "white", border: "1px solid #e5e7eb", borderRadius: 8, padding: 14, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" },
+  badge:      { color: "white", fontSize: 11, padding: "2px 8px", borderRadius: 12, fontWeight: "bold" },
+  overlay:    { position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 },
+  modal:      { background: "white", borderRadius: 12, padding: 24, width: "100%", maxWidth: 420, maxHeight: "90vh", overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }
 };

@@ -23,7 +23,7 @@ router.get('/', authenticate, canComment, async (req, res, next) => {
 
     const snap = await ticketRef
       .collection('comments')
-      .orderBy('createdAt', 'asc')
+      
       .get();
 
     const comments = snap.docs.map(d => ({ id: d.id, ...d.data() }));

@@ -9,9 +9,11 @@ exports.getAssets = async (req, res) => {
       query = query.where("status", "!=", "deleted");
     }
 
-    // Non-admins only see their department
-    if (req.user && req.user.role !== "admin" && req.user.department) {
+    // Role-based filtering
+    if (req.user && req.user.role === "manager" && req.user.department) {
       query = query.where("department", "==", req.user.department);
+    } else if (req.user && req.user.role === "viewer") {
+      query = query.where("assignedTo", "==", req.user.name);
     }
 
     if (req.query.ward) query = query.where("ward", "==", req.query.ward);

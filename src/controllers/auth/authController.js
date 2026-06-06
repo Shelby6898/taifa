@@ -113,7 +113,8 @@ exports.login = async (req, res) => {
       {
         userId: userDoc.id,
         role: user.role,
-        department: user.department
+        department: user.department,
+        name: user.name || ""
       },
       JWT_SECRET,
       {

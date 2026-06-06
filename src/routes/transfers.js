@@ -1,8 +1,18 @@
 const express = require("express");
 const router = express.Router();
-const { getTransfers, createTransfer } = require("../controllers/transferController");
+const {
+  getTransfers,
+  createTransfer,
+  approveTransfer,
+  denyTransfer
+} = require("../controllers/transferController");
+const { authenticate, authorizeRoles } = require("../middleware/authMiddleware");
 
-router.get("/", getTransfers);
-router.post("/", createTransfer);
+router.use(authenticate);
+
+router.get("/",    getTransfers);
+router.post("/",   authorizeRoles("admin", "manager"), createTransfer);
+router.patch("/:id/approve", authorizeRoles("admin"), approveTransfer);
+router.patch("/:id/deny",    authorizeRoles("admin"), denyTransfer);
 
 module.exports = router;

@@ -3,7 +3,13 @@ const { db } = require("../config/firebase");
 // Full summary report
 exports.getSummaryReport = async (req, res) => {
   try {
-    const snapshot = await db.collection("assets").get();
+    let query = db.collection("assets");
+    if (req.user.role === "manager" && req.user.department) {
+      query = query.where("department", "==", req.user.department);
+    } else if (req.user.role === "viewer") {
+      query = query.where("assignedTo", "==", req.user.name);
+    }
+    const snapshot = await query.get();
     const assets = snapshot.docs.map(doc => ({ assetId: doc.id, ...doc.data() }));
 
     const total = assets.length;
@@ -56,7 +62,7 @@ exports.getSummaryReport = async (req, res) => {
 exports.getAuditReport = async (req, res) => {
   try {
     const snapshot = await db.collection("asset_audit")
-      .orderBy("timestamp", "desc")
+      
       .limit(100)
       .get();
 

@@ -14,10 +14,16 @@ const VALID_STATUSES   = ['open', 'assigned', 'in-progress', 'resolved', 'closed
 // GET TICKETS
 router.get('/', authenticate, async (req, res, next) => {
   try {
-    let query = db.collection('tickets').orderBy('createdAt', 'desc');
+    let query = db.collection('tickets');
     const snap = await query.get();
     let docs = snap.docs;
-    if (!['admin', 'manager'].includes(req.user.role)) {
+    if (req.user.role === 'admin') {
+      // admin sees all
+    } else if (req.user.role === 'manager') {
+      // manager sees only their department
+      docs = docs.filter(d => d.data().department === req.user.department);
+    } else {
+      // viewer/user sees only their own tickets
       docs = docs.filter(d => d.data().userId === req.user.userId);
     }
     const tickets = docs.map(d => {
@@ -59,6 +65,7 @@ router.post('/', authenticate, canSubmit, async (req, res, next) => {
       userName:  requesterName,
       userEmail: requesterEmail,
       userId:    req.user.userId,
+      department: req.user.department || department || 'General',
       status:    'open',
       assignedTo: null, assignedToName: null, assignedToEmail: null,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),

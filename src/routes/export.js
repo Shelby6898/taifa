@@ -10,7 +10,7 @@ const isAdmin = authorizeRoles('admin');
 // ── Helper: fetch and filter tickets ──
 async function getTickets(query) {
   const { status, priority, category, search } = query;
-  let ref = db.collection('tickets').orderBy('createdAt', 'desc');
+  let ref = db.collection('tickets');
   const snap = await ref.get();
 
   let tickets = snap.docs.map(d => ({ id: d.id, ...d.data() }));

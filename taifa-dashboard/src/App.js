@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Assets from "./pages/Assets";
-import Transfers from "./pages/Transfers";
+import Transfers from "./pages/Transfers.js";
 import Maintenance from "./pages/Maintenance";
 import Reports from "./pages/Reports";
 import Users from "./pages/Users.jsx";

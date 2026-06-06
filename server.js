@@ -92,6 +92,7 @@ app.use(
   require("./src/routes/auth")
 );
 
+app.use("/assets/view", require("./src/routes/publicAssets"));
 app.use(
   "/api/assets",
   require("./src/routes/assets")
