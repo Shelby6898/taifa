@@ -169,7 +169,7 @@ exports.deleteAsset = async (req, res) => {
     await db.collection("asset_audit").add({
       assetId: id, action: "deleted",
       changedBy: req.user.userId || "system",
-      reason: req.body.reason || "soft delete",
+      reason: (req.body && req.body.reason) || "soft delete",
       oldData, newData: { ...oldData, ...updateData },
       timestamp: admin.firestore.Timestamp.now()
     });

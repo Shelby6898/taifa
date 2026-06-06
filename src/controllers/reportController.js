@@ -66,14 +66,23 @@ exports.getAuditReport = async (req, res) => {
       .limit(100)
       .get();
 
-    const logs = snapshot.docs.map(doc => {
+    const userCache = {};
+    const logs = await Promise.all(snapshot.docs.map(async doc => {
       const data = doc.data();
+      const userId = data.changedBy;
+      if (userId && userId !== 'system' && !userCache[userId]) {
+        try {
+          const userDoc = await db.collection('users').doc(userId).get();
+          userCache[userId] = userDoc.exists ? userDoc.data().name : userId;
+        } catch(e) { userCache[userId] = userId; }
+      }
       return {
         id: doc.id,
         ...data,
+        changedBy: userCache[userId] || data.changedBy || 'system',
         timestamp: data.timestamp?.toDate().toISOString()
       };
-    });
+    }));
 
     res.status(200).json({ success: true, count: logs.length, data: logs });
   } catch (error) {
