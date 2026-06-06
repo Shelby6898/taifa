@@ -5,7 +5,7 @@ import { useState } from "react";
 const navItems = [
   { path: "/dashboard",              icon: "📊", label: "Dashboard"    },
   { path: "/dashboard/assets",       icon: "🏛️", label: "Assets"       },
-  { path: "/dashboard/transfers",    icon: "🔄", label: "Transfers"    },
+  { path: "/dashboard/transfers",    icon: "🔄", label: "Transfers",   hideViewer: true },
   { path: "/dashboard/maintenance",  icon: "🔧", label: "Maintenance"  },
   { path: "/dashboard/depreciation", icon: "📉", label: "Depreciation" },
   { path: "/dashboard/reports",      icon: "📈", label: "Reports"      },
@@ -57,7 +57,11 @@ export default function Dashboard() {
                 color: "#fff", fontSize: 12, fontWeight: 700 },
   };
 
-  const visibleNav = navItems.filter(n => !n.adminOnly || user.role === "admin");
+  const visibleNav = navItems.filter(n => {
+    if (n.adminOnly && user.role !== "admin") return false;
+    if (n.hideViewer && user.role === "viewer") return false;
+    return true;
+  });
   const isHome = location.pathname === "/dashboard";
 
   return (

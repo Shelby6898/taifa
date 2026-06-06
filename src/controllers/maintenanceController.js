@@ -24,9 +24,11 @@ exports.getMaintenanceRecords = async (req, res) => {
       })
     );
 
-    // Filter by department for non-admins
-    if (req.user.role !== "admin" && req.user.department) {
+    // Role-based filtering
+    if (req.user.role === "manager" && req.user.department) {
       records = records.filter(r => r.department === req.user.department);
+    } else if (req.user.role === "viewer") {
+      records = records.filter(r => r.assignedTo === req.user.name);
     }
 
     // Sort by scheduledDate desc

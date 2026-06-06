@@ -62,7 +62,7 @@ export default function Transfers() {
     } finally { setSubmitting(false); }
   }
 
-  // Admin: direct transfer → executes immediately on the asset
+  // Admin: direct transfer → creates transfer record AND executes immediately
   async function submitDirectTransfer(e) {
     e.preventDefault();
     if (!adminForm.assetId || !adminForm.toWard || !adminForm.toDepartment) {
@@ -70,10 +70,12 @@ export default function Transfers() {
     }
     setSubmitting(true);
     try {
-      await api.put(`/assets/${adminForm.assetId}`, {
-        ward: adminForm.toWard,
-        department: adminForm.toDepartment,
-        updatedBy: user.name || "admin"
+      // Create transfer record (will be auto-approved)
+      await api.post("/transfers/direct", {
+        assetId: adminForm.assetId,
+        toWard: adminForm.toWard,
+        toDepartment: adminForm.toDepartment,
+        reason: adminForm.reason
       });
       setMessage("✅ Asset transferred successfully.");
       setAdminForm({ assetId: "", toWard: "", toDepartment: "", reason: "" });

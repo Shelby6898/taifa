@@ -15,6 +15,7 @@ exports.getSummaryReport = async (req, res) => {
     const total = assets.length;
     const active = assets.filter(a => a.status === "active").length;
     const deleted = assets.filter(a => a.status === "deleted").length;
+    const maintenance = assets.filter(a => a.status === "maintenance").length;
     const totalValue = assets.reduce((sum, a) => sum + (a.value || 0), 0);
 
     // by ward
@@ -47,7 +48,7 @@ exports.getSummaryReport = async (req, res) => {
     res.status(200).json({
       success: true,
       data: {
-        summary: { total, active, deleted, totalValue },
+        summary: { total, active, deleted, maintenance, totalValue },
         byWard: Object.values(byWard),
         byDepartment: Object.values(byDept),
         byType: Object.values(byType)

@@ -167,11 +167,12 @@ exports.approveTransfer = async (req, res) => {
     const approverDoc = await db.collection("users").doc(req.user.userId).get();
     const approverName = approverDoc.exists ? approverDoc.data().name : "Admin";
 
-    // Execute the transfer — update the asset
+    // Execute the transfer — update the asset, clear assignedTo
     const assetRef = db.collection("assets").doc(transfer.assetId);
     await assetRef.update({
       ward:        transfer.toWard,
       department:  transfer.toDepartment,
+      assignedTo:  null,
       updatedAt:   admin.firestore.Timestamp.now()
     });
 
