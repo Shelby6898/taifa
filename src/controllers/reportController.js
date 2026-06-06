@@ -89,3 +89,31 @@ exports.getAuditReport = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+
+// Ticket audit log
+exports.getTicketAuditReport = async (req, res) => {
+  try {
+    const snapshot = await db.collection('ticket_audit').limit(100).get();
+    const userCache = {};
+    const logs = await Promise.all(snapshot.docs.map(async doc => {
+      const data = doc.data();
+      const userId = data.changedBy;
+      if (userId && !userCache[userId]) {
+        try {
+          const userDoc = await db.collection('users').doc(userId).get();
+          userCache[userId] = userDoc.exists ? userDoc.data().name : userId;
+        } catch(e) { userCache[userId] = userId; }
+      }
+      return {
+        id: doc.id,
+        ...data,
+        changedByName: userCache[userId] || data.changedByName || 'system',
+        timestamp: data.timestamp ? data.timestamp.toDate().toISOString() : null
+      };
+    }));
+    res.status(200).json({ success: true, count: logs.length, data: logs });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

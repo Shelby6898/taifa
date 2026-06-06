@@ -124,6 +124,18 @@ router.post('/', authenticate, canSubmit, async (req, res, next) => {
       });
     }
 
+    // Audit log
+    await db.collection('ticket_audit').add({
+      ticketId: docRef.id,
+      action: 'created',
+      title,
+      department: req.user.department || 'General',
+      changedBy: req.user.userId,
+      changedByName: requesterName,
+      note: 'Ticket created by ' + requesterName,
+      timestamp: admin.firestore.FieldValue.serverTimestamp()
+    });
+
     res.status(201).json({ id: docRef.id, message: 'Ticket created.' });
   } catch (err) { next(err); }
 });
@@ -164,6 +176,19 @@ router.patch('/:id/status', authenticate, isAdmin, async (req, res, next) => {
         `
       });
     }
+
+    // Audit log
+    const updaterDoc = await db.collection('users').doc(req.user.userId).get();
+    const updaterName = updaterDoc.exists ? updaterDoc.data().name : 'Admin';
+    await db.collection('ticket_audit').add({
+      ticketId: req.params.id,
+      action: 'status_changed',
+      title: ticket.title,
+      changedBy: req.user.userId,
+      changedByName: updaterName,
+      note: 'Status changed to ' + status + ' by ' + updaterName,
+      timestamp: admin.firestore.FieldValue.serverTimestamp()
+    });
 
     res.json({ message: 'Status updated.', status });
   } catch (err) { next(err); }
@@ -213,6 +238,17 @@ router.patch('/:id/assign', authenticate, isAdmin, async (req, res, next) => {
       `
     });
 
+    // Audit log
+    await db.collection('ticket_audit').add({
+      ticketId: req.params.id,
+      action: 'assigned',
+      title: ticket.title,
+      changedBy: req.user.userId,
+      changedByName: agent.name,
+      note: 'Ticket assigned to ' + agent.name,
+      timestamp: admin.firestore.FieldValue.serverTimestamp()
+    });
+
     res.json({ message: 'Ticket assigned.', assignedTo: { id: agentId, name: agent.name, email: agent.email } });
   } catch (err) { next(err); }
 });
@@ -259,7 +295,22 @@ router.delete('/:id', authenticate, isAdmin, async (req, res, next) => {
     const ref = db.collection('tickets').doc(req.params.id);
     const doc = await ref.get();
     if (!doc.exists) return res.status(404).json({ error: 'Ticket not found.' });
+    const ticketData = doc.data();
     await ref.delete();
+
+    // Audit log
+    const deleterDoc = await db.collection('users').doc(req.user.userId).get();
+    const deleterName = deleterDoc.exists ? deleterDoc.data().name : 'Admin';
+    await db.collection('ticket_audit').add({
+      ticketId: req.params.id,
+      action: 'deleted',
+      title: ticketData.title || 'Unknown',
+      changedBy: req.user.userId,
+      changedByName: deleterName,
+      note: 'Ticket deleted by ' + deleterName,
+      timestamp: admin.firestore.FieldValue.serverTimestamp()
+    });
+
     res.json({ message: 'Ticket deleted.' });
   } catch (err) { next(err); }
 });
