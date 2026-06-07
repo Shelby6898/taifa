@@ -245,7 +245,7 @@ export default function DashboardHome() {
         </div>
       )}
 
-      <p style={styles.sectionTitle}>🎫 ICT Helpdesk Overview</p>
+      <p style={styles.sectionTitle}>🎫 Taifa Helpdesk Overview</p>
       <div style={styles.grid4}>
         <div style={styles.statCard("#6366f1")}>
           <div style={styles.statLabel}>Total Tickets</div>
@@ -416,7 +416,7 @@ export default function DashboardHome() {
           { path:"maintenance",  icon:"🔧", label:"Maintenance",   color:"#f59e0b" },
           { path:"depreciation", icon:"📉", label:"Depreciation",  color:"#ef4444" },
           { path:"reports",      icon:"📈", label:"Reports",       color:"#8b5cf6" },
-          { path:"ict-helpdesk", icon:"🎫", label:"ICT Helpdesk",  color:"#22d3ee" },
+          { path:"ict-helpdesk", icon:"🎫", label:"Taifa Helpdesk",  color:"#22d3ee" },
         ].filter(Boolean).map(item => (
           <div key={item.path} style={styles.moduleCard(item.color)}
             onClick={() => navigate(`/dashboard/${item.path}`)}>

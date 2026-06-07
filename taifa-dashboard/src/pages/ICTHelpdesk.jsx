@@ -196,7 +196,7 @@ export default function ICTHelpdesk() {
       {/* Header */}
       <div style={s.hdr}>
         <div>
-          <div style={s.title}>🎫 ICT Helpdesk</div>
+          <div style={s.title}>🎫 Taifa Helpdesk</div>
           <div style={s.sub}>{isAdmin ? "Manage all support tickets" : "Submit and track your IT support tickets"}</div>
         </div>
         {isAdmin && (

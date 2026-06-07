@@ -10,7 +10,7 @@ const navItems = [
   { path: "/dashboard/depreciation", icon: "📉", label: "Depreciation", hideViewer: true },
   { path: "/dashboard/reports",      icon: "📈", label: "Reports"      },
   { path: "/dashboard/notifications",icon: "🔔", label: "Notifications", showBadge: true },
-  { path: "/dashboard/ict-helpdesk", icon: "🎫", label: "ICT Helpdesk" },
+  { path: "/dashboard/ict-helpdesk", icon: "🎫", label: "Taifa Helpdesk" },
   { path: "/dashboard/users",        icon: "👥", label: "Users",  adminOnly: true },
 ];
 
