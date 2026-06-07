@@ -1,8 +1,18 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 
-const typeIcon = (type) => ({ transfer_in: "📥", transfer_out: "📤", transfer: "🔄", maintenance: "🔧", alert: "⚠️" }[type] || "🔔");
-const typeColor = (type) => ({ transfer_in: "#16a34a", transfer_out: "#dc2626", transfer: "#2563eb", maintenance: "#d97706", alert: "#dc2626" }[type] || "#6b7280");
+const typeIcon = (type) => ({
+  transfer_in: "📥", transfer_out: "📤", transfer: "🔄", transfer_request: "🔄",
+  transfer_approved: "✅", transfer_denied: "❌",
+  maintenance: "🔧", alert: "⚠️",
+  asset_created: "🏛️", ticket_new: "🎫", ticket_updated: "🎫"
+}[type] || "🔔");
+const typeColor = (type) => ({
+  transfer_in: "#16a34a", transfer_out: "#dc2626", transfer: "#2563eb",
+  transfer_request: "#6366f1", transfer_approved: "#10b981", transfer_denied: "#ef4444",
+  maintenance: "#d97706", alert: "#dc2626",
+  asset_created: "#6366f1", ticket_new: "#8b5cf6", ticket_updated: "#8b5cf6"
+}[type] || "#6b7280");
 
 export default function Notifications() {
   const [notifications, setNotifications] = useState([]);
@@ -40,6 +50,9 @@ export default function Notifications() {
 
   const filtered = filter === "all" ? notifications
     : filter === "unread" ? notifications.filter(n => !n.isRead)
+    : filter === "ticket" ? notifications.filter(n => n.type?.includes("ticket"))
+    : filter === "asset" ? notifications.filter(n => n.type?.includes("asset"))
+    : filter === "transfer" ? notifications.filter(n => n.type?.includes("transfer"))
     : notifications.filter(n => n.type?.includes(filter));
 
   const unread = notifications.filter(n => !n.isRead).length;
@@ -55,7 +68,7 @@ export default function Notifications() {
 
       {/* Filter tabs */}
       <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
-        {["all", "unread", "transfer", "maintenance"].map(f => (
+        {["all", "unread", "transfer", "maintenance", "ticket", "asset"].map(f => (
           <button key={f} onClick={() => setFilter(f)} style={{
             padding: "7px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 13,
             background: filter === f ? "#06122b" : "#e5e7eb",

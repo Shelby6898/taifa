@@ -23,8 +23,8 @@ export default function Transfers() {
   // Admin form — direct transfer, no approval needed
   const [adminForm, setAdminForm] = useState({ assetId: "", toWard: "", toDepartment: "", reason: "" });
 
-  const WARDS = ["Central","Township","Northern","Southern","Eastern","Western"];
-  const DEPTS = ["Finance","ICT","Health","Education","Roads","Water","Administration"];
+  const WARDS = ["Kabuchai","Bungoma Central","Bungoma East","Bungoma North","Bungoma South","Bungoma West","Musikoma","Chwele","Malakisi","Lwandanyi","Sirisia","Namwela","Maliki","Tongaren","Ndivisi","Maeni","Milima","Kimilili","Kibingei","Kamukuywa","Bumula","Butula","Nzoia","Khalaba","Kimaeti","Mihuu","Bokoli","Kanduyi","Soysambu","Teso North","Teso South","Anyange","Chakol North","Chakol South","Nambale","Bukhayo North","Bukhayo Central","Bukhayo East","Mt Elgon","Kapsokwony","Cheptais","Kaptama","Chesikaki","Elgon"];
+  const DEPTS = ["Finance","ICT","Health","Education","Roads","Water","Administration","Revenue","Agriculture"];
 
   useEffect(() => { loadAll(); }, []);
 

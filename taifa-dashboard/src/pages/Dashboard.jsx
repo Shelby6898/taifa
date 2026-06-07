@@ -1,6 +1,6 @@
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import DashboardHome from "./DashboardHome";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const navItems = [
   { path: "/dashboard",              icon: "📊", label: "Dashboard"    },
@@ -9,7 +9,7 @@ const navItems = [
   { path: "/dashboard/maintenance",  icon: "🔧", label: "Maintenance"  },
   { path: "/dashboard/depreciation", icon: "📉", label: "Depreciation" },
   { path: "/dashboard/reports",      icon: "📈", label: "Reports"      },
-  { path: "/dashboard/notifications",icon: "🔔", label: "Notifications"},
+  { path: "/dashboard/notifications",icon: "🔔", label: "Notifications", showBadge: true },
   { path: "/dashboard/ict-helpdesk", icon: "🎫", label: "ICT Helpdesk" },
   { path: "/dashboard/users",        icon: "👥", label: "Users",  adminOnly: true },
 ];
@@ -19,6 +19,22 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    loadUnread();
+    const interval = setInterval(loadUnread, 30000); // refresh every 30s
+    return () => clearInterval(interval);
+  }, []);
+
+  async function loadUnread() {
+    try {
+      const { api } = await import('../api');
+      const res = await api.get('/notifications');
+      const unread = (res.data.data || []).filter(n => !n.isRead).length;
+      setUnreadCount(unread);
+    } catch (e) {}
+  }
 
   function logout() {
     localStorage.removeItem("token");

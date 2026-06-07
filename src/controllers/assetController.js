@@ -1,4 +1,5 @@
 const { db, admin } = require("../config/firebase");
+const { createNotification } = require("./notificationController");
 const generateAssetCode = require("../services/assetCodeGenerator");
 
 exports.getAssets = async (req, res) => {
@@ -58,10 +59,23 @@ exports.createAsset = async (req, res) => {
       return res.status(403).json({ success: false, message: "You can only create assets in your department" });
     }
 
+    // If assignedTo is set, auto-set department to match that user's department
+    let finalDepartment = department;
+    let assignedTo = req.body.assignedTo || null;
+    if (assignedTo) {
+      const userSnap = await db.collection("users").where("name", "==", assignedTo).get();
+      if (!userSnap.empty) {
+        const assignedUser = userSnap.docs[0].data();
+        if (assignedUser.department) {
+          finalDepartment = assignedUser.department;
+        }
+      }
+    }
+
     const assetData = {
       assetCode: generateAssetCode(req.body.ward),
-      type, name, ward, department,
-      assignedTo: req.body.assignedTo || null,
+      type, name, ward, department: finalDepartment,
+      assignedTo,
       status: "active",
       value: req.body.value || 0,
       location: req.body.location || null,
@@ -79,6 +93,16 @@ exports.createAsset = async (req, res) => {
       changedBy: req.user.userId || "system",
       oldData: null, newData: assetData,
       timestamp: admin.firestore.Timestamp.now()
+    });
+
+    await createNotification({
+      type: "asset_created",
+      title: "New Asset Added",
+      message: `Asset "${name}" has been added to ${finalDepartment} department`,
+      department: finalDepartment,
+      assetId: docRef.id,
+      assetName: name,
+      triggeredBy: req.user.name || "Admin"
     });
 
     res.status(201).json({ success: true, assetId: docRef.id, assetCode: assetData.assetCode, message: "Asset created successfully" });
@@ -172,6 +196,16 @@ exports.deleteAsset = async (req, res) => {
       reason: (req.body && req.body.reason) || "soft delete",
       oldData, newData: { ...oldData, ...updateData },
       timestamp: admin.firestore.Timestamp.now()
+    });
+
+    await createNotification({
+      type: "alert",
+      title: "Asset Deleted",
+      message: `Asset "${oldData.name}" has been deleted from ${oldData.department} department`,
+      department: oldData.department,
+      assetId: id,
+      assetName: oldData.name,
+      triggeredBy: req.user.name || "Admin"
     });
 
     res.status(200).json({ success: true, message: "Asset deleted successfully", assetId: id });

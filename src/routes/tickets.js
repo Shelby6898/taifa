@@ -3,6 +3,7 @@ const router = express.Router();
 const { db, admin } = require('../config/firebase');
 const { sendEmail } = require('../services/email');
 const { authenticate } = require('../middleware/authMiddleware');
+const { createNotification } = require('../controllers/notificationController');
 const { authorizeRoles } = require('../middleware/authMiddleware');
 const isAdmin = authorizeRoles('admin');
 const canSubmit = authorizeRoles('admin', 'manager', 'viewer', 'user');
@@ -124,6 +125,16 @@ router.post('/', authenticate, canSubmit, async (req, res, next) => {
       });
     }
 
+    // Notify admins
+    await createNotification({
+      type: 'ticket_new',
+      title: 'New ICT Ticket',
+      message: requesterName + ' submitted a new ticket: ' + title,
+      department: req.user.department || 'General',
+      triggeredBy: requesterName,
+      targetRole: 'admin'
+    });
+
     // Audit log
     await db.collection('ticket_audit').add({
       ticketId: docRef.id,
@@ -176,6 +187,16 @@ router.patch('/:id/status', authenticate, isAdmin, async (req, res, next) => {
         `
       });
     }
+
+    // Notify ticket owner
+    await createNotification({
+      type: 'ticket_updated',
+      title: 'Ticket Status Updated',
+      message: 'Your ticket "' + ticket.title + '" status changed to: ' + status,
+      department: ticket.department || 'General',
+      triggeredBy: 'Admin',
+      targetUserId: ticket.userId
+    });
 
     // Audit log
     const updaterDoc = await db.collection('users').doc(req.user.userId).get();

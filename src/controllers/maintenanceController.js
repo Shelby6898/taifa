@@ -1,4 +1,6 @@
 const { db, admin } = require("../config/firebase");
+const { createNotification } = require("./notificationController");
+const { sendEmail } = require("../services/email");
 
 // GET all maintenance records
 exports.getMaintenanceRecords = async (req, res) => {
@@ -90,6 +92,43 @@ exports.createMaintenanceRecord = async (req, res) => {
       status: "maintenance",
       updatedAt: admin.firestore.Timestamp.now()
     });
+
+    // Notify manager and assigned user
+    const assetDept = assetData.department || "General";
+    await createNotification({
+      type: "maintenance",
+      title: "Maintenance Scheduled",
+      message: record.type + " maintenance scheduled for " + assetData.name + " on " + scheduledDate,
+      department: assetDept,
+      assetId,
+      assetName: assetData.name,
+      triggeredBy: req.user.name || "Admin"
+    });
+    if (assignedTo) {
+      // Find user by name and notify them
+      const userSnap = await db.collection("users").where("name", "==", assignedTo).get();
+      if (!userSnap.empty) {
+        const assignedUser = userSnap.docs[0].data();
+        await createNotification({
+          type: "maintenance",
+          title: "Asset Maintenance Scheduled",
+          message: "Maintenance scheduled for your asset: " + assetData.name + " on " + scheduledDate,
+          department: assetDept,
+          assetId,
+          assetName: assetData.name,
+          triggeredBy: req.user.name || "Admin",
+          targetUserId: userSnap.docs[0].id
+        });
+        // Email the assigned user
+        if (assignedUser.email) {
+          await sendEmail({
+            to: assignedUser.email,
+            subject: "🔧 Maintenance Scheduled: " + assetData.name,
+            html: "<div style='font-family:sans-serif;padding:24px'><h2 style='color:#f59e0b'>Taifa — Maintenance Scheduled</h2><p>Hi " + assignedTo + ",</p><p>Maintenance has been scheduled for an asset assigned to you.</p><div style='background:#fef9c3;padding:16px;border-radius:8px;margin:16px 0'><p><strong>Asset:</strong> " + assetData.name + "</p><p><strong>Type:</strong> " + record.type + "</p><p><strong>Date:</strong> " + scheduledDate + "</p><p><strong>Description:</strong> " + (record.description || 'N/A') + "</p></div></div>"
+          });
+        }
+      }
+    }
 
     // Audit log
     await db.collection("asset_audit").add({

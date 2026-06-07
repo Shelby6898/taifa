@@ -227,6 +227,19 @@ exports.approveTransfer = async (req, res) => {
       department: transfer.fromDepartment,
       assetId: transfer.assetId,
       assetName: transfer.assetName,
+      triggeredBy: approverName,
+      targetUserId: transfer.requestedBy
+    });
+    // Also notify receiving department
+    await createNotification({
+      type: "transfer_in",
+      title: "Asset Transferred In",
+      message: `${transfer.assetName} has been transferred to your department from ${transfer.fromDepartment}`,
+      department: transfer.toDepartment,
+      assetId: transfer.assetId,
+      assetName: transfer.assetName,
+      fromDept: transfer.fromDepartment,
+      toDept: transfer.toDepartment,
       triggeredBy: approverName
     });
 
@@ -315,7 +328,8 @@ exports.denyTransfer = async (req, res) => {
       department: transfer.fromDepartment,
       assetId: transfer.assetId,
       assetName: transfer.assetName,
-      triggeredBy: approverName
+      triggeredBy: approverName,
+      targetUserId: transfer.requestedBy
     });
 
     await db.collection("asset_audit").add({

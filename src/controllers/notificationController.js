@@ -10,10 +10,20 @@ exports.getNotifications = async (req, res) => {
       createdAt: doc.data().createdAt?.toDate().toISOString()
     }));
 
-    // Filter by department for non-admins
-    if (req.user.role !== "admin" && req.user.department) {
+    // Role-based filtering
+    if (req.user.role === "admin") {
+      // admin sees all
+    } else if (req.user.role === "manager") {
       notifications = notifications.filter(n =>
-        n.department === req.user.department || n.targetRole === "all"
+        n.department === req.user.department ||
+        n.targetUserId === req.user.userId ||
+        n.department === "all"
+      );
+    } else {
+      // viewer sees only their own
+      notifications = notifications.filter(n =>
+        n.targetUserId === req.user.userId ||
+        n.department === "all"
       );
     }
 
@@ -85,7 +95,7 @@ exports.deleteNotification = async (req, res) => {
 };
 
 // CREATE notification (internal helper - also exported for use in other controllers)
-exports.createNotification = async ({ type, title, message, department, assetId, assetName, fromDept, toDept, triggeredBy }) => {
+exports.createNotification = async ({ type, title, message, department, assetId, assetName, fromDept, toDept, triggeredBy, targetUserId, targetRole }) => {
   try {
     await db.collection("notifications").add({
       type,
@@ -97,6 +107,8 @@ exports.createNotification = async ({ type, title, message, department, assetId,
       fromDept: fromDept || null,
       toDept: toDept || null,
       triggeredBy: triggeredBy || "system",
+      targetUserId: targetUserId || null,
+      targetRole: targetRole || null,
       readBy: [],
       createdAt: admin.firestore.Timestamp.now()
     });

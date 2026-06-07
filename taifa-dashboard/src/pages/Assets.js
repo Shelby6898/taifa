@@ -3,8 +3,8 @@ import { api } from "../api";
 import { QRCodeSVG } from "qrcode.react";
 
 const TYPES = ["ICT Equipment", "Furniture", "Vehicle", "Land", "Building", "Machinery", "Other"];
-const DEPARTMENTS = ["Finance", "ICT", "Health", "Education", "Roads", "Water", "Administration"];
-const WARDS = ["Central", "Township", "Northern", "Southern", "Eastern", "Western"];
+const DEPARTMENTS = ["Finance", "ICT", "Health", "Education", "Roads", "Water", "Administration", "Revenue", "Agriculture"];
+const WARDS = ["Kabuchai", "Bungoma Central", "Bungoma East", "Bungoma North", "Bungoma South", "Bungoma West", "Musikoma", "Chwele", "Malakisi", "Lwandanyi", "Sirisia", "Namwela", "Maliki", "Tongaren", "Ndivisi", "Maeni", "Milima", "Kimilili", "Kibingei", "Kamukuywa", "Bumula", "Butula", "Nzoia", "Khalaba", "Kimaeti", "Mihuu", "Bokoli", "Kanduyi", "Soysambu", "Teso North", "Teso South", "Anyange", "Chakol North", "Chakol South", "Nambale", "Bukhayo North", "Bukhayo Central", "Bukhayo East", "Mt Elgon", "Kapsokwony", "Cheptais", "Kaptama", "Chesikaki", "Elgon"];
 
 export default function Assets() {
   const [assets, setAssets] = useState([]);
@@ -204,7 +204,25 @@ export default function Assets() {
               </select>
             )}
             <input style={styles.input} placeholder="Value (KES)" type="number" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} />
-            <input style={styles.input} placeholder="Assigned To" value={form.assignedTo} onChange={e => setForm({ ...form, assignedTo: e.target.value })} />
+            <input style={styles.input} placeholder="Assigned To" value={form.assignedTo}
+              onChange={async e => {
+                const name = e.target.value;
+                setForm(f => ({ ...f, assignedTo: name }));
+              }}
+              onBlur={async e => {
+                const name = e.target.value.trim();
+                if (name && isAdmin) {
+                  try {
+                    const res = await api.get('/users');
+                    const users = res.data.data || [];
+                    const match = users.find(u => u.name === name);
+                    if (match && match.department) {
+                      setForm(f => ({ ...f, department: match.department }));
+                    }
+                  } catch(err) {}
+                }
+              }}
+            />
             <input style={styles.input} placeholder="Location" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} />
             <input style={styles.input} type="date" value={form.acquisitionDate} onChange={e => setForm({ ...form, acquisitionDate: e.target.value })} />
           </div>
