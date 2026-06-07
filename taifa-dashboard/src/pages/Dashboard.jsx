@@ -7,7 +7,7 @@ const navItems = [
   { path: "/dashboard/assets",       icon: "🏛️", label: "Assets"       },
   { path: "/dashboard/transfers",    icon: "🔄", label: "Transfers",   hideViewer: true },
   { path: "/dashboard/maintenance",  icon: "🔧", label: "Maintenance"  },
-  { path: "/dashboard/depreciation", icon: "📉", label: "Depreciation" },
+  { path: "/dashboard/depreciation", icon: "📉", label: "Depreciation", hideViewer: true },
   { path: "/dashboard/reports",      icon: "📈", label: "Reports"      },
   { path: "/dashboard/notifications",icon: "🔔", label: "Notifications", showBadge: true },
   { path: "/dashboard/ict-helpdesk", icon: "🎫", label: "ICT Helpdesk" },
