@@ -166,11 +166,20 @@ exports.updateMaintenanceRecord = async (req, res) => {
 
     if (req.body.status === "completed") {
       updateData.completedDate = admin.firestore.Timestamp.now();
-      // Restore asset to active
-      await db.collection("assets").doc(doc.data().assetId).update({
-        status: "active",
-        updatedAt: admin.firestore.Timestamp.now()
-      });
+      // Only restore asset to active if no other active maintenance records exist
+      const otherMaintenance = await db.collection("maintenance")
+        .where("assetId", "==", doc.data().assetId)
+        .get();
+      const hasOtherActive = otherMaintenance.docs.some(d =>
+        d.id !== req.params.id &&
+        ["scheduled", "in-progress"].includes(d.data().status)
+      );
+      if (!hasOtherActive) {
+        await db.collection("assets").doc(doc.data().assetId).update({
+          status: "active",
+          updatedAt: admin.firestore.Timestamp.now()
+        });
+      }
     }
 
     await docRef.update(updateData);
