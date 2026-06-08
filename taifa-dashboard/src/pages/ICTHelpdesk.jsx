@@ -187,6 +187,14 @@ export default function ICTHelpdesk() {
     closed:   tickets.filter(t => ["closed","resolved"].includes(t.status)).length,
   };
 
+  // SLA Compliance Rate — % of resolved/closed tickets that met SLA
+  const resolvedTickets = tickets.filter(t => ["resolved","closed"].includes(t.status));
+  const slaMetTickets   = resolvedTickets.filter(t => t.sla?.slaStatus === "met");
+  const slaBreached     = resolvedTickets.filter(t => t.sla?.slaStatus === "breached").length;
+  const slaAtRisk       = tickets.filter(t => t.sla?.slaStatus === "at_risk").length;
+  const complianceRate  = resolvedTickets.length > 0
+    ? Math.round((slaMetTickets.length / resolvedTickets.length) * 100) : 100;
+
   const s = {
     wrap:    { padding: "20px 16px", fontFamily: "sans-serif" },
     hdr:     { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 8 },
@@ -254,6 +262,14 @@ export default function ICTHelpdesk() {
         <div style={s.stat("#f59e0b")}><div style={s.slabel}>Open</div><div style={s.sval}>{stats.open}</div></div>
         <div style={s.stat("#818cf8")}><div style={s.slabel}>In Progress</div><div style={s.sval}>{stats.progress}</div></div>
         <div style={s.stat("#10b981")}><div style={s.slabel}>Closed</div><div style={s.sval}>{stats.closed}</div></div>
+        <div style={{ ...s.stat(complianceRate >= 80 ? "#10b981" : complianceRate >= 50 ? "#f59e0b" : "#ef4444"),
+          gridColumn: "span 2" }}>
+          <div style={s.slabel}>SLA Compliance Rate</div>
+          <div style={{ ...s.sval, fontSize: 28 }}>{complianceRate}%</div>
+          <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+            {slaMetTickets.length} met · {slaBreached} breached · {slaAtRisk} at risk
+          </div>
+        </div>
       </div>
 
       {/* Submit Form */}
