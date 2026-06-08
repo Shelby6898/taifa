@@ -37,7 +37,7 @@ export default function ICTHelpdesk() {
     device: "", description: "", department: user.department || ""
   });
 
-  useEffect(() => { loadTickets(); }, []);
+  useEffect(() => { loadTickets(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadTickets() {
     setLoading(true);

@@ -14,7 +14,7 @@ export default function Reports() {
   const [tab, setTab] = useState("summary");
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => { loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadAll = async () => {
     try {

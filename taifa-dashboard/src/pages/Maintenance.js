@@ -18,7 +18,7 @@ export default function Maintenance() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const canEdit = ["admin", "manager"].includes(user.role);
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => { loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadAll = async () => {
     setLoading(true);

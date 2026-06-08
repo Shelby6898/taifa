@@ -11,9 +11,7 @@ const COLORS = ["#6366f1","#10b981","#f59e0b","#ef4444","#22d3ee","#8b5cf6","#ec
 export default function DashboardHome() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const navigate = useNavigate();
-  const isViewer  = user.role === "viewer";
-  const isManager = user.role === "manager";
-  const isAdmin   = user.role === "admin";
+  const isViewer = user.role === "viewer";
 
   const [summary,   setSummary]   = useState(null);
   const [tickets,   setTickets]   = useState([]);
