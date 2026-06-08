@@ -12,6 +12,57 @@ const VALID_CATEGORIES = ['hardware', 'software', 'network', 'account', 'other']
 const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 const VALID_STATUSES   = ['open', 'assigned', 'in-progress', 'resolved', 'closed'];
 
+// SLA targets in minutes
+const SLA_TARGETS = {
+  urgent: { response: 60,    resolution: 240  },  // 1hr / 4hrs
+  high:   { response: 240,   resolution: 480  },  // 4hrs / 8hrs
+  medium: { response: 480,   resolution: 1440 },  // 8hrs / 24hrs
+  low:    { response: 1440,  resolution: 4320 },  // 24hrs / 72hrs
+};
+
+function calcSLA(ticket) {
+  const priority = ticket.priority || 'medium';
+  const targets  = SLA_TARGETS[priority] || SLA_TARGETS.medium;
+  const now      = Date.now();
+
+  const createdAt   = ticket.createdAt?._seconds  ? ticket.createdAt._seconds  * 1000 : null;
+  const assignedAt  = ticket.assignedAt?._seconds ? ticket.assignedAt._seconds * 1000 : null;
+  const resolvedAt  = ticket.resolvedAt?._seconds ? ticket.resolvedAt._seconds * 1000 : null;
+  const closedAt    = ticket.closedAt?._seconds   ? ticket.closedAt._seconds   * 1000 : null;
+
+  // Response time (createdAt -> assignedAt)
+  const responseMinutes = assignedAt && createdAt
+    ? Math.round((assignedAt - createdAt) / 60000) : null;
+
+  // Resolution time (createdAt -> resolvedAt)
+  const resolutionMinutes = resolvedAt && createdAt
+    ? Math.round((resolvedAt - createdAt) / 60000) : null;
+
+  // Time elapsed since created (for open tickets)
+  const elapsedMinutes = createdAt ? Math.round((now - createdAt) / 60000) : 0;
+
+  // SLA status
+  let slaStatus = 'on_time';
+  if (resolvedAt || closedAt) {
+    slaStatus = resolutionMinutes <= targets.resolution ? 'met' : 'breached';
+  } else {
+    const remaining = targets.resolution - elapsedMinutes;
+    if (elapsedMinutes > targets.resolution) slaStatus = 'breached';
+    else if (remaining <= targets.resolution * 0.2) slaStatus = 'at_risk';
+    else slaStatus = 'on_time';
+  }
+
+  return {
+    targets,
+    responseMinutes,
+    resolutionMinutes,
+    elapsedMinutes,
+    slaStatus,
+    responseTarget:   targets.response,
+    resolutionTarget: targets.resolution,
+  };
+}
+
 // GET TICKETS
 router.get('/', authenticate, async (req, res, next) => {
   try {
@@ -35,7 +86,8 @@ router.get('/', authenticate, async (req, res, next) => {
         category:  data.category  || 'other',
         priority:  data.priority  || 'medium',
         userEmail: data.userEmail || '',
-        userName:  data.userName  || data.requester || ''
+        userName:  data.userName  || data.requester || '',
+        sla:       calcSLA(data)
       };
     });
     res.json({ tickets });
@@ -164,7 +216,13 @@ router.patch('/:id/status', authenticate, isAdmin, async (req, res, next) => {
 
     const ticket = doc.data();
 
-    await ref.update({ status, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+    const statusUpdate = {
+      status,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+    if (status === 'resolved') statusUpdate.resolvedAt = admin.firestore.FieldValue.serverTimestamp();
+    if (status === 'closed')   statusUpdate.closedAt   = admin.firestore.FieldValue.serverTimestamp();
+    await ref.update(statusUpdate);
 
     // ── Notify user when status changes ──
     if (ticket.userEmail) {

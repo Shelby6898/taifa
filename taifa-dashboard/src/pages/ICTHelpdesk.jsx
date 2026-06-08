@@ -14,6 +14,27 @@ function Badge({ text, color }) {
   );
 }
 
+const slaColor = (status) => ({
+  met:      "#10b981",
+  on_time:  "#6366f1",
+  at_risk:  "#f59e0b",
+  breached: "#ef4444",
+}[status] || "#6b7280");
+
+const slaLabel = (status) => ({
+  met:      "✅ SLA Met",
+  on_time:  "🟢 On Time",
+  at_risk:  "⚠️ At Risk",
+  breached: "🔴 Breached",
+}[status] || "—");
+
+function fmtDuration(minutes) {
+  if (minutes === null || minutes === undefined) return "—";
+  if (minutes < 60)   return minutes + "m";
+  if (minutes < 1440) return Math.round(minutes / 60) + "h " + (minutes % 60) + "m";
+  return Math.floor(minutes / 1440) + "d " + Math.round((minutes % 1440) / 60) + "h";
+}
+
 export default function ICTHelpdesk() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const isAdmin = ["admin", "manager"].includes(user.role);
@@ -349,6 +370,11 @@ export default function ICTHelpdesk() {
                     {t.department}
                   </span>
                 )}
+              {t.sla && (
+                <span style={{ fontSize: 10, fontWeight: 700, background: slaColor(t.sla.slaStatus) + "22", color: slaColor(t.sla.slaStatus), border: "1px solid " + slaColor(t.sla.slaStatus) + "44", padding: "2px 8px", borderRadius: 4 }}>
+                  {slaLabel(t.sla.slaStatus)}
+                </span>
+              )}
               </div>
 
               {/* Title */}
@@ -418,6 +444,55 @@ export default function ICTHelpdesk() {
             <div style={{ background: "#f8fafc", borderRadius: 8, padding: 12, fontSize: 13, color: "#475569", lineHeight: 1.6, marginBottom: 14 }}>
               {selectedTicket.description}
             </div>
+
+            {/* SLA Details */}
+            {selectedTicket.sla && (
+              <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: 12, marginBottom: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#1e293b", marginBottom: 8 }}>
+                  📊 SLA Tracking
+                  <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700,
+                    background: slaColor(selectedTicket.sla.slaStatus) + "22",
+                    color: slaColor(selectedTicket.sla.slaStatus),
+                    border: "1px solid " + slaColor(selectedTicket.sla.slaStatus) + "44",
+                    padding: "2px 8px", borderRadius: 4 }}>
+                    {slaLabel(selectedTicket.sla.slaStatus)}
+                  </span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12 }}>
+                  <div style={{ background: "white", borderRadius: 6, padding: 8, border: "1px solid #e2e8f0" }}>
+                    <div style={{ color: "#64748b", marginBottom: 2 }}>Response Time</div>
+                    <div style={{ fontWeight: 700, color: "#1e293b" }}>
+                      {selectedTicket.sla.responseMinutes !== null ? fmtDuration(selectedTicket.sla.responseMinutes) : "Pending"}
+                    </div>
+                    <div style={{ color: "#94a3b8", fontSize: 11 }}>Target: {fmtDuration(selectedTicket.sla.responseTarget)}</div>
+                  </div>
+                  <div style={{ background: "white", borderRadius: 6, padding: 8, border: "1px solid #e2e8f0" }}>
+                    <div style={{ color: "#64748b", marginBottom: 2 }}>Resolution Time</div>
+                    <div style={{ fontWeight: 700, color: "#1e293b" }}>
+                      {selectedTicket.sla.resolutionMinutes !== null ? fmtDuration(selectedTicket.sla.resolutionMinutes) : "In Progress"}
+                    </div>
+                    <div style={{ color: "#94a3b8", fontSize: 11 }}>Target: {fmtDuration(selectedTicket.sla.resolutionTarget)}</div>
+                  </div>
+                  <div style={{ background: "white", borderRadius: 6, padding: 8, border: "1px solid #e2e8f0" }}>
+                    <div style={{ color: "#64748b", marginBottom: 2 }}>Time Elapsed</div>
+                    <div style={{ fontWeight: 700, color: "#1e293b" }}>{fmtDuration(selectedTicket.sla.elapsedMinutes)}</div>
+                  </div>
+                  <div style={{ background: "white", borderRadius: 6, padding: 8, border: "1px solid #e2e8f0" }}>
+                    <div style={{ color: "#64748b", marginBottom: 2 }}>Priority</div>
+                    <div style={{ fontWeight: 700, color: priorityColor[selectedTicket.priority] || "#64748b", textTransform: "capitalize" }}>
+                      {selectedTicket.priority}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ marginTop: 8, fontSize: 11, color: "#64748b", display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  {selectedTicket.createdAt && <span>📅 Created: {fmtDate(selectedTicket.createdAt)}</span>}
+                  {selectedTicket.assignedAt && <span>👤 Assigned: {fmtDate(selectedTicket.assignedAt)}</span>}
+                  {selectedTicket.resolvedAt && <span>✅ Resolved: {fmtDate(selectedTicket.resolvedAt)}</span>}
+                  {selectedTicket.closedAt && <span>🔒 Closed: {fmtDate(selectedTicket.closedAt)}</span>}
+                </div>
+              </div>
+            )}
+
             <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 14 }}>
               <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>💬 Comments</h4>
               <div style={{ maxHeight: 180, overflowY: "auto", marginBottom: 10 }}>
