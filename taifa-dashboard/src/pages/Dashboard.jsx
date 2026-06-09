@@ -12,6 +12,7 @@ const navItems = [
   { path: "/dashboard/notifications",icon: "🔔", label: "Notifications", showBadge: true },
   { path: "/dashboard/ict-helpdesk", icon: "🎫", label: "Taifa Helpdesk" },
   { path: "/dashboard/users",        icon: "👥", label: "Users",  adminOnly: true },
+  { path: "/dashboard/settings",     icon: "⚙️", label: "Settings" },
 ];
 
 export default function Dashboard() {

@@ -122,6 +122,7 @@ app.use(
 |--------------------------------------------------------------------------
 */
 app.use("/api/tickets",  require("./src/routes/tickets"));
+app.use("/api/settings", require("./src/routes/settings"));
 app.use("/api/tickets/:id/comments", require("./src/routes/comments"));
 app.use("/api",         require("./src/routes/admin"));
 app.use("/api/export",   require("./src/routes/export"));
