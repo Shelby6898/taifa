@@ -129,6 +129,15 @@ app.use("/api/export",   require("./src/routes/export"));
 
 /*
 |--------------------------------------------------------------------------
+| Static Frontend (Production)
+app.use(express.static(path.join(__dirname, 'taifa-dashboard/build')));
+app.get('*', (req, res) => {
+  if (!req.path.startsWith('/api') && !req.path.startsWith('/assets/view')) {
+    res.sendFile(path.join(__dirname, 'taifa-dashboard/build', 'index.html'));
+  }
+});
+
+// ─────────────────────────────────────
 | 404 Route Handler
 |--------------------------------------------------------------------------
 */

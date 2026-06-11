@@ -1,0 +1,7 @@
+taifa-dashboard/node_modules
+taifa-dashboard/src
+taifa-dashboard/public
+node_modules
+.env
+*.log
+serviceAccountKey.json
