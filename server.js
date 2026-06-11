@@ -50,23 +50,12 @@ app.use(express.static(
 */
 
 app.get("/", (req, res) => {
-  res.status(200).json({
-    success: true,
-    application: "Taifa County Asset Manager",
-    version: "1.0.0",
-    environment: NODE_ENV,
-    message: "Welcome to Taifa API",
-    endpoints: {
-      health: "/api/health",
-      auth: "/api/auth",
-      assets: "/api/assets",
-      transfers: "/api/transfers",
-      maintenance: "/api/maintenance",
-      reports: "/api/reports"
-    }
-  });
+  const indexPath = path.join(process.cwd(), "taifa-dashboard/build", "index.html");
+  if (require("fs").existsSync(indexPath)) {
+    return res.sendFile(indexPath);
+  }
+  res.status(200).json({ success: true, application: "Taifa County Asset Manager" });
 });
-
 /*
 |--------------------------------------------------------------------------
 | Health Check
@@ -131,7 +120,7 @@ app.use("/api/export",   require("./src/routes/export"));
 /*
 |--------------------------------------------------------------------------
 | Static Frontend (Production)
-const buildPath = path.join(__dirname, 'taifa-dashboard/build');
+const buildPath = path.join(process.cwd(), 'taifa-dashboard/build');
 console.log('Build path:', buildPath);
 console.log('Build exists:', require('fs').existsSync(buildPath));
 app.use(express.static(buildPath));
