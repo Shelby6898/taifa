@@ -13,6 +13,7 @@ const app = express();
 */
 
 const PORT = process.env.PORT || 4000;
+const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 const NODE_ENV = process.env.NODE_ENV || "development";
 
 /*
@@ -188,8 +189,8 @@ app.listen(PORT, () => {
 🚀 TAIFA COUNTY ASSET MANAGER API
 ==================================================
 Environment : ${NODE_ENV}
-Server URL  : http://localhost:${PORT}
-Health Check: http://localhost:${PORT}/api/health
+Server URL  : ${BASE_URL}
+Health Check: ${BASE_URL}/api/health
 Started At  : ${new Date().toLocaleString()}
 ==================================================
 `);
