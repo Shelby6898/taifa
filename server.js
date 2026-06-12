@@ -39,9 +39,7 @@ app.use(express.urlencoded({
 |--------------------------------------------------------------------------
 */
 
-app.use(express.static(
-  path.join(__dirname, "public")
-));
+app.use(express.static(path.join(__dirname, "taifa-dashboard/build")));
 
 /*
 |--------------------------------------------------------------------------
@@ -50,8 +48,8 @@ app.use(express.static(
 */
 
 app.get("/", (req, res) => {
-  const indexPath = path.join(process.cwd(), "taifa-dashboard/build", "index.html");
-  if (require("fs").existsSync(indexPath)) {
+  const indexPath = path.join(__dirname, "taifa-dashboard/build", "index.html");
+  if (fs.existsSync(indexPath)) {
     return res.sendFile(indexPath);
   }
   res.status(200).json({ success: true, application: "Taifa County Asset Manager" });
@@ -120,20 +118,17 @@ app.use("/api/export",   require("./src/routes/export"));
 /*
 |--------------------------------------------------------------------------
 | Static Frontend (Production)
-const buildPath = path.join(process.cwd(), 'taifa-dashboard/build');
-console.log('Build path:', buildPath);
-console.log('Build exists:', require('fs').existsSync(buildPath));
+|--------------------------------------------------------------------------
+*/
+const buildPath = path.join(__dirname, "taifa-dashboard/build");
 app.use(express.static(buildPath));
-app.get('*', (req, res) => {
-  if (!req.path.startsWith('/api') && !req.path.startsWith('/assets/view')) {
-    const indexPath = path.join(buildPath, 'index.html');
-    if (require('fs').existsSync(indexPath)) {
-      res.sendFile(indexPath);
-    }
-  }
+app.get("/{*path}", (req, res, next) => {
+  if (req.path.startsWith("/api") || req.path.startsWith("/assets/view")) return next();
+  const indexPath = path.join(buildPath, "index.html");
+  require("fs").existsSync(indexPath) ? res.sendFile(indexPath) : next();
 });
-
-// ─────────────────────────────────────
+/*
+|--------------------------------------------------------------------------
 | 404 Route Handler
 |--------------------------------------------------------------------------
 */
