@@ -164,7 +164,7 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`
 ==================================================
-🚀 TAIFA COUNTY ASSET MANAGER API
+🚀 TAIFATECH ASSET MANAGER API
 ==================================================
 Environment : ${NODE_ENV}
 Server URL  : ${BASE_URL}
