@@ -108,6 +108,7 @@ app.use("/api/settings", require("./src/routes/settings"));
 app.use("/api/tickets/:id/comments", require("./src/routes/comments"));
 app.use("/api",         require("./src/routes/admin"));
 app.use("/api/export",   require("./src/routes/export"));
+app.use("/api/backup", require("./src/routes/backup"));
 
 /*
 |--------------------------------------------------------------------------
