@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || "https://taifaonrender.com/api"
+  baseURL: process.env.REACT_APP_API_URL || "https://taifa.onrender.com/api"
 });
 
 // Attach token to every request
