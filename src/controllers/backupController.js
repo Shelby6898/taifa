@@ -1,4 +1,4 @@
-const { db, bucket } = require("../config/firebase");
+const { db } = require("../config/firebase");
 
 function serializeData(data) {
   return JSON.parse(JSON.stringify(data, (key, value) => {
@@ -20,6 +20,7 @@ exports.runBackup = async (req, res) => {
     const backupData = {};
 
     for (const collectionRef of collections) {
+      if (collectionRef.id === "backups") continue;
       const snapshot = await collectionRef.get();
       backupData[collectionRef.id] = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -27,18 +28,20 @@ exports.runBackup = async (req, res) => {
       }));
     }
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const fileName = `backups/backup-${timestamp}.json`;
-    const file = bucket.file(fileName);
+    const timestamp = new Date().toISOString();
+    const docId = timestamp.replace(/[:.]/g, "-");
 
-    await file.save(JSON.stringify(backupData, null, 2), {
-      contentType: "application/json"
+    await db.collection("backups").doc(docId).set({
+      timestamp,
+      collections: Object.keys(backupData),
+      data: backupData,
+      createdAt: require("firebase-admin").firestore.Timestamp.now()
     });
 
     res.json({
       success: true,
       message: "Backup completed successfully",
-      file: fileName,
+      backupId: docId,
       collections: Object.keys(backupData),
       timestamp
     });
