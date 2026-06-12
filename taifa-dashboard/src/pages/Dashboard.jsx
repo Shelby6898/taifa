@@ -87,7 +87,7 @@ export default function Dashboard() {
       <div style={styles.sidebar}>
         <div style={styles.logo}>
           <span style={{ fontSize: 22 }}>🏛️</span>
-          <span style={styles.logoText}>Taifa</span>
+          <span style={styles.logoText}>Taifatech</span>
         </div>
         <nav style={styles.nav}>
           {visibleNav.map(item => (

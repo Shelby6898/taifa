@@ -30,8 +30,8 @@ export default function Login() {
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        <h1 style={styles.logo}>TAIFA</h1>
-        <p style={styles.sub}>County Asset Management System</p>
+        <h1 style={styles.logo}>TAIFATECH</h1>
+        <p style={styles.sub}>Taifa Asset Management System</p>
 
         {error && <p style={styles.error}>{error}</p>}
 

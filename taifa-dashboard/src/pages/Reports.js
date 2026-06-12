@@ -39,7 +39,7 @@ export default function Reports() {
     const date = new Date().toLocaleDateString();
 
     doc.setFontSize(16);
-    doc.text("Taifa County Asset Management System", 14, 15);
+    doc.text("Taifa Asset Management System", 14, 15);
     doc.setFontSize(11);
     doc.text(`Summary Report — ${date}`, 14, 23);
 
@@ -95,7 +95,7 @@ export default function Reports() {
     const date = new Date().toLocaleDateString();
 
     doc.setFontSize(16);
-    doc.text("Taifa County Asset Management System", 14, 15);
+    doc.text("Taifa Asset Management System", 14, 15);
     doc.setFontSize(11);
     doc.text(`Audit Log Report — ${date}`, 14, 23);
 
@@ -124,7 +124,7 @@ export default function Reports() {
 
     // Summary sheet
     const summarySheet = XLSX.utils.aoa_to_sheet([
-      ["Taifa County Asset Management System"],
+      ["Taifa Asset Management System"],
       [`Summary Report — ${date}`],
       [],
       ["Metric", "Value"],

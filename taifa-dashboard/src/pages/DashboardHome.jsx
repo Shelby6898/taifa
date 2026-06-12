@@ -139,7 +139,7 @@ export default function DashboardHome() {
       {/* Welcome */}
       <div style={styles.welcome}>
         <h2 style={styles.title}>Welcome back, {user.name}! 👋</h2>
-        <p style={styles.sub}>Taifa County Asset Management Platform — {new Date().toLocaleDateString("en-GB", { weekday:"long", day:"2-digit", month:"long", year:"numeric" })}</p>
+        <p style={styles.sub}>Taifa Asset Management Platform — {new Date().toLocaleDateString("en-GB", { weekday:"long", day:"2-digit", month:"long", year:"numeric" })}</p>
       </div>
 
       {/* Asset Stats */}
