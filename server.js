@@ -47,13 +47,7 @@ app.use(express.static(path.join(__dirname, "taifa-dashboard/build")));
 |--------------------------------------------------------------------------
 */
 
-app.get("/", (req, res) => {
-  const indexPath = path.join(__dirname, "taifa-dashboard/build", "index.html");
-  if (fs.existsSync(indexPath)) {
-    return res.sendFile(indexPath);
-  }
-  res.status(200).json({ success: true, application: "Taifa County Asset Manager" });
-});
+// Root served by static files above
 /*
 |--------------------------------------------------------------------------
 | Health Check
