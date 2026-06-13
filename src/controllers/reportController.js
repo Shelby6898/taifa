@@ -10,7 +10,11 @@ exports.getSummaryReport = async (req, res) => {
       query = query.where("assignedTo", "==", req.user.name);
     }
     const snapshot = await query.get();
-    const assets = snapshot.docs.map(doc => ({ assetId: doc.id, ...doc.data() }));
+    let assets = snapshot.docs.map(doc => ({ assetId: doc.id, ...doc.data() }));
+
+    if (req.user.role !== "super-admin") {
+      assets = assets.filter(a => a.orgId === req.user.orgId);
+    }
 
     const total = assets.length;
     const active = assets.filter(a => a.status === "active").length;
@@ -85,6 +89,11 @@ exports.getAuditReport = async (req, res) => {
       };
     }));
 
+    // Organization isolation
+    if (req.user.role !== "super-admin") {
+      logs = logs.filter(l => l.orgId === req.user.orgId);
+    }
+
     // Managers only see their department's audit logs
     if (req.user.role === 'manager' && req.user.department) {
       // Get asset IDs in their department
@@ -121,7 +130,9 @@ exports.getTicketAuditReport = async (req, res) => {
         timestamp: data.timestamp ? data.timestamp.toDate().toISOString() : null
       };
     }));
-    res.status(200).json({ success: true, count: logs.length, data: logs });
+
+    const scopedLogs = req.user.role === "super-admin" ? logs : logs.filter(l => l.orgId === req.user.orgId);
+    res.status(200).json({ success: true, count: scopedLogs.length, data: scopedLogs });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -148,7 +159,9 @@ exports.getUserAuditReport = async (req, res) => {
         timestamp: data.timestamp ? data.timestamp.toDate().toISOString() : null
       };
     }));
-    res.status(200).json({ success: true, count: logs.length, data: logs });
+
+    const scopedLogs = req.user.role === "super-admin" ? logs : logs.filter(l => l.orgId === req.user.orgId);
+    res.status(200).json({ success: true, count: scopedLogs.length, data: scopedLogs });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

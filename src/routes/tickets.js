@@ -5,7 +5,7 @@ const { sendEmail } = require('../services/email');
 const { authenticate } = require('../middleware/authMiddleware');
 const { createNotification } = require('../controllers/notificationController');
 const { authorizeRoles } = require('../middleware/authMiddleware');
-const isAdmin = authorizeRoles('admin');
+const isAdmin = authorizeRoles('admin', 'super-admin');
 const canSubmit = authorizeRoles('admin', 'manager', 'viewer', 'user');
 
 const VALID_CATEGORIES = ['hardware', 'software', 'network', 'account', 'other'];
@@ -69,6 +69,11 @@ router.get('/', authenticate, async (req, res, next) => {
     let query = db.collection('tickets');
     const snap = await query.get();
     let docs = snap.docs;
+
+    if (req.user.role !== 'super-admin') {
+      docs = docs.filter(d => d.data().orgId === req.user.orgId);
+    }
+
     if (req.user.role === 'admin') {
       // admin sees all
     } else if (req.user.role === 'manager') {
@@ -111,6 +116,7 @@ router.post('/', authenticate, canSubmit, async (req, res, next) => {
     const finalPriority = VALID_PRIORITIES.includes(priority) ? priority : 'medium';
 
     const docRef = await db.collection('tickets').add({
+      orgId: req.user.orgId,
       title, description, device: device || '',
       category:  finalCategory,
       priority:  finalPriority,
@@ -150,7 +156,9 @@ router.post('/', authenticate, canSubmit, async (req, res, next) => {
 
     // ── 2. Notification email to all admins ──
     const adminsSnap = await db.collection('users').where('role', '==', 'admin').get();
-    const adminEmails = adminsSnap.docs.map(d => d.data().email);
+    const adminEmails = adminsSnap.docs
+      .filter(d => d.data().orgId === req.user.orgId)
+      .map(d => d.data().email);
 
     if (adminEmails.length) {
       await sendEmail({
@@ -180,6 +188,7 @@ router.post('/', authenticate, canSubmit, async (req, res, next) => {
     // Notify admins
     await createNotification({
       type: 'ticket_new',
+      orgId: req.user.orgId,
       title: 'New ICT Ticket',
       message: requesterName + ' submitted a new ticket: ' + title,
       department: req.user.department || 'General',
@@ -190,6 +199,7 @@ router.post('/', authenticate, canSubmit, async (req, res, next) => {
     // Audit log
     await db.collection('ticket_audit').add({
       ticketId: docRef.id,
+      orgId: req.user.orgId,
       action: 'created',
       title,
       department: req.user.department || 'General',
@@ -215,6 +225,10 @@ router.patch('/:id/status', authenticate, isAdmin, async (req, res, next) => {
     if (!doc.exists) return res.status(404).json({ error: 'Ticket not found.' });
 
     const ticket = doc.data();
+
+    if (req.user.role !== 'super-admin' && ticket.orgId !== req.user.orgId) {
+      return res.status(404).json({ error: 'Ticket not found.' });
+    }
 
     const statusUpdate = {
       status,
@@ -249,6 +263,7 @@ router.patch('/:id/status', authenticate, isAdmin, async (req, res, next) => {
     // Notify ticket owner
     await createNotification({
       type: 'ticket_updated',
+      orgId: ticket.orgId,
       title: 'Ticket Status Updated',
       message: 'Your ticket "' + ticket.title + '" status changed to: ' + status,
       department: ticket.department || 'General',
@@ -261,6 +276,7 @@ router.patch('/:id/status', authenticate, isAdmin, async (req, res, next) => {
     const updaterName = updaterDoc.exists ? updaterDoc.data().name : 'Admin';
     await db.collection('ticket_audit').add({
       ticketId: req.params.id,
+      orgId: ticket.orgId,
       action: 'status_changed',
       title: ticket.title,
       changedBy: req.user.userId,
@@ -288,6 +304,13 @@ router.patch('/:id/assign', authenticate, isAdmin, async (req, res, next) => {
     const ticketDoc = await ticketRef.get();
     if (!ticketDoc.exists) return res.status(404).json({ error: 'Ticket not found.' });
     const ticket = ticketDoc.data();
+
+    if (req.user.role !== 'super-admin') {
+      if (ticket.orgId !== req.user.orgId || agent.orgId !== req.user.orgId) {
+        return res.status(404).json({ error: 'Ticket not found.' });
+      }
+    }
+
     await ticketRef.update({
       assignedTo: agentId, assignedToEmail: agent.email, assignedToName: agent.name,
       assignedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -320,6 +343,7 @@ router.patch('/:id/assign', authenticate, isAdmin, async (req, res, next) => {
     // Audit log
     await db.collection('ticket_audit').add({
       ticketId: req.params.id,
+      orgId: ticket.orgId,
       action: 'assigned',
       title: ticket.title,
       changedBy: req.user.userId,
@@ -338,6 +362,11 @@ router.patch('/:id/unassign', authenticate, isAdmin, async (req, res, next) => {
     const ref = db.collection('tickets').doc(req.params.id);
     const doc = await ref.get();
     if (!doc.exists) return res.status(404).json({ error: 'Ticket not found.' });
+
+    if (req.user.role !== 'super-admin' && doc.data().orgId !== req.user.orgId) {
+      return res.status(404).json({ error: 'Ticket not found.' });
+    }
+
     await ref.update({
       assignedTo: null, assignedToEmail: null, assignedToName: null,
       assignedAt: null, status: 'open',
@@ -363,6 +392,11 @@ router.patch('/:id', authenticate, isAdmin, async (req, res, next) => {
     const ref = db.collection('tickets').doc(req.params.id);
     const doc = await ref.get();
     if (!doc.exists) return res.status(404).json({ error: 'Ticket not found.' });
+
+    if (req.user.role !== 'super-admin' && doc.data().orgId !== req.user.orgId) {
+      return res.status(404).json({ error: 'Ticket not found.' });
+    }
+
     await ref.update(updates);
     res.json({ message: 'Ticket updated.', ...updates });
   } catch (err) { next(err); }
@@ -375,6 +409,11 @@ router.delete('/:id', authenticate, isAdmin, async (req, res, next) => {
     const doc = await ref.get();
     if (!doc.exists) return res.status(404).json({ error: 'Ticket not found.' });
     const ticketData = doc.data();
+
+    if (req.user.role !== 'super-admin' && ticketData.orgId !== req.user.orgId) {
+      return res.status(404).json({ error: 'Ticket not found.' });
+    }
+
     await ref.delete();
 
     // Audit log
@@ -382,6 +421,7 @@ router.delete('/:id', authenticate, isAdmin, async (req, res, next) => {
     const deleterName = deleterDoc.exists ? deleterDoc.data().name : 'Admin';
     await db.collection('ticket_audit').add({
       ticketId: req.params.id,
+      orgId: ticketData.orgId,
       action: 'deleted',
       title: ticketData.title || 'Unknown',
       changedBy: req.user.userId,

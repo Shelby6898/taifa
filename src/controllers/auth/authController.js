@@ -56,6 +56,7 @@ exports.register = async (req, res) => {
 
     await db.collection("user_audit").add({
       userId: docRef.id,
+      orgId: user.orgId,
       action: "user_created",
       changedBy: req.user?.userId || "system",
       note: "User " + name + " created with role: " + (role || "viewer"),
@@ -205,6 +206,7 @@ exports.updateUser = async (req, res) => {
 
     await db.collection("user_audit").add({
       userId: id,
+      orgId: oldData.orgId,
       action: "user_updated",
       changedBy: req.user?.userId || "system",
       note: "Role: " + oldData.role + " → " + newRole + " | Dept: " + oldData.department + " → " + newDept,
@@ -236,6 +238,7 @@ exports.deleteUser = async (req, res) => {
 
     await db.collection("user_audit").add({
       userId: id,
+      orgId: userData.orgId,
       action: "user_deleted",
       changedBy: req.user?.userId || "system",
       note: "User " + userData.name + " deleted",

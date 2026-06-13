@@ -77,6 +77,11 @@ exports.getDepreciationReport = async (req, res) => {
     const snapshot = await db.collection("assets").get();
     let assets = snapshot.docs.map(doc => ({ assetId: doc.id, ...doc.data() }));
 
+    // Organization isolation
+    if (req.user.role !== "super-admin") {
+      assets = assets.filter(a => a.orgId === req.user.orgId);
+    }
+
     // Filter by department for non-admins
     if (req.user.role !== "admin" && req.user.department) {
       assets = assets.filter(a => a.department === req.user.department);
@@ -113,6 +118,11 @@ exports.getAssetDepreciation = async (req, res) => {
     if (!doc.exists) return res.status(404).json({ success: false, message: "Asset not found" });
 
     const asset = { assetId: doc.id, ...doc.data() };
+
+    if (req.user.role !== "super-admin" && asset.orgId !== req.user.orgId) {
+      return res.status(404).json({ success: false, message: "Asset not found" });
+    }
+
     const result = calcDepreciation(asset);
 
     // Year by year breakdown
