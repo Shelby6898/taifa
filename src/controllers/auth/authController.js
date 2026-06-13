@@ -44,7 +44,7 @@ exports.register = async (req, res) => {
       passwordHash,
       role: role || "viewer",
       department: department || null,
-      orgId: req.body.orgId || null,
+      orgId: req.user.role === "super-admin" ? (req.body.orgId || null) : req.user.orgId,
 
       createdAt:
         admin.firestore.Timestamp.now()
@@ -160,7 +160,7 @@ exports.login = async (req, res) => {
 exports.getUsers = async (req, res) => {
   try {
     const snapshot = await db.collection("users").get();
-    const users = snapshot.docs.map(doc => ({
+    let users = snapshot.docs.map(doc => ({
       id: doc.id,
       name: doc.data().name,
       email: doc.data().email,
@@ -169,6 +169,11 @@ exports.getUsers = async (req, res) => {
       orgId: doc.data().orgId || null,
       createdAt: doc.data().createdAt?.toDate().toISOString()
     }));
+
+    if (req.user.role !== "super-admin") {
+      users = users.filter(u => u.orgId === req.user.orgId);
+    }
+
     res.json({ success: true, count: users.length, data: users });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -185,6 +190,11 @@ exports.updateUser = async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
     const oldData = doc.data();
+
+    if (req.user.role !== "super-admin" && oldData.orgId !== req.user.orgId) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
     const newRole = role || oldData.role;
     const newDept = department || oldData.department;
     await docRef.update({
@@ -217,6 +227,11 @@ exports.deleteUser = async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
     const userData = doc.data();
+
+    if (req.user.role !== "super-admin" && userData.orgId !== req.user.orgId) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
     await db.collection("users").doc(id).delete();
 
     await db.collection("user_audit").add({

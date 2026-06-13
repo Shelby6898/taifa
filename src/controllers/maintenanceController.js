@@ -26,6 +26,11 @@ exports.getMaintenanceRecords = async (req, res) => {
       })
     );
 
+    // Organization isolation
+    if (req.user.role !== "super-admin") {
+      records = records.filter(r => r.orgId === req.user.orgId);
+    }
+
     // Role-based filtering
     if (req.user.role === "manager" && req.user.department) {
       records = records.filter(r => r.department === req.user.department);
@@ -47,7 +52,11 @@ exports.getMaintenanceRecord = async (req, res) => {
   try {
     const doc = await db.collection("maintenance").doc(req.params.id).get();
     if (!doc.exists) return res.status(404).json({ success: false, message: "Record not found" });
-    res.json({ success: true, data: { id: doc.id, ...doc.data() } });
+    const data = doc.data();
+    if (req.user.role !== "super-admin" && data.orgId !== req.user.orgId) {
+      return res.status(404).json({ success: false, message: "Record not found" });
+    }
+    res.json({ success: true, data: { id: doc.id, ...data } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -66,11 +75,17 @@ exports.createMaintenanceRecord = async (req, res) => {
 
     // Manager can only schedule maintenance for assets in their department
     const assetData = assetDoc.data();
+
+    if (req.user.role !== "super-admin" && assetData.orgId !== req.user.orgId) {
+      return res.status(404).json({ success: false, message: "Asset not found" });
+    }
+
     if (req.user.role !== "admin" && req.user.department && assetData.department !== req.user.department) {
       return res.status(403).json({ success: false, message: "You can only schedule maintenance for assets in your department" });
     }
 
     const record = {
+      orgId: assetData.orgId,
       assetId,
       type,
       description: description || "",
@@ -100,6 +115,7 @@ exports.createMaintenanceRecord = async (req, res) => {
       title: "Maintenance Scheduled",
       message: record.type + " maintenance scheduled for " + assetData.name + " on " + scheduledDate,
       department: assetDept,
+      orgId: assetData.orgId,
       assetId,
       assetName: assetData.name,
       triggeredBy: req.user.name || "Admin"
@@ -114,6 +130,7 @@ exports.createMaintenanceRecord = async (req, res) => {
           title: "Asset Maintenance Scheduled",
           message: "Maintenance scheduled for your asset: " + assetData.name + " on " + scheduledDate,
           department: assetDept,
+          orgId: assetData.orgId,
           assetId,
           assetName: assetData.name,
           triggeredBy: req.user.name || "Admin",
@@ -135,6 +152,7 @@ exports.createMaintenanceRecord = async (req, res) => {
       assetId,
       action: "maintenance_scheduled",
       changedBy: req.user.userId || "system",
+      orgId: assetData.orgId,
       reason: record.type + " maintenance scheduled",
       oldData: null,
       newData: { ...record, id: docRef.id },
@@ -155,10 +173,15 @@ exports.updateMaintenanceRecord = async (req, res) => {
     const doc = await docRef.get();
     if (!doc.exists) return res.status(404).json({ success: false, message: "Record not found" });
 
+    if (req.user.role !== "super-admin" && doc.data().orgId !== req.user.orgId) {
+      return res.status(404).json({ success: false, message: "Record not found" });
+    }
+
     const updateData = {
       ...req.body,
       updatedAt: admin.firestore.Timestamp.now()
     };
+    delete updateData.orgId;
 
     if (req.body.scheduledDate) {
       updateData.scheduledDate = admin.firestore.Timestamp.fromDate(new Date(req.body.scheduledDate));
@@ -189,6 +212,7 @@ exports.updateMaintenanceRecord = async (req, res) => {
       assetId: doc.data().assetId,
       action: updateData.status === "completed" ? "maintenance_completed" : "maintenance_updated",
       changedBy: req.user.userId || "system",
+      orgId: doc.data().orgId,
       reason: updateData.status ? "Status changed to " + updateData.status : "Maintenance record updated",
       oldData: doc.data(),
       newData: updateData,
@@ -207,6 +231,10 @@ exports.deleteMaintenanceRecord = async (req, res) => {
     const doc = await db.collection("maintenance").doc(req.params.id).get();
     if (!doc.exists) return res.status(404).json({ success: false, message: "Record not found" });
 
+    if (req.user.role !== "super-admin" && doc.data().orgId !== req.user.orgId) {
+      return res.status(404).json({ success: false, message: "Record not found" });
+    }
+
     // Restore asset to active if it was in maintenance
     const assetDoc = await db.collection("assets").doc(doc.data().assetId).get();
     if (assetDoc.exists && assetDoc.data().status === "maintenance") {
@@ -223,6 +251,7 @@ exports.deleteMaintenanceRecord = async (req, res) => {
       assetId: doc.data().assetId,
       action: "maintenance_deleted",
       changedBy: req.user.userId || "system",
+      orgId: doc.data().orgId,
       reason: "Maintenance record deleted",
       oldData: doc.data(),
       newData: null,

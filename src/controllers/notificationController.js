@@ -10,6 +10,11 @@ exports.getNotifications = async (req, res) => {
       createdAt: doc.data().createdAt?.toDate().toISOString()
     }));
 
+    // Organization isolation
+    if (req.user.role !== "super-admin") {
+      notifications = notifications.filter(n => n.orgId === req.user.orgId);
+    }
+
     // Role-based filtering
     if (req.user.role === "admin") {
       // admin sees all
@@ -95,13 +100,14 @@ exports.deleteNotification = async (req, res) => {
 };
 
 // CREATE notification (internal helper - also exported for use in other controllers)
-exports.createNotification = async ({ type, title, message, department, assetId, assetName, fromDept, toDept, triggeredBy, targetUserId, targetRole }) => {
+exports.createNotification = async ({ type, title, message, department, orgId, assetId, assetName, fromDept, toDept, triggeredBy, targetUserId, targetRole }) => {
   try {
     await db.collection("notifications").add({
       type,
       title,
       message,
       department: department || "all",
+      orgId: orgId || null,
       assetId: assetId || null,
       assetName: assetName || null,
       fromDept: fromDept || null,

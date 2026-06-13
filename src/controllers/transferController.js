@@ -26,16 +26,20 @@ exports.getTransfers = async (req, res) => {
       })
     )).sort((a, b) => (b.createdAt?._seconds || 0) - (a.createdAt?._seconds || 0));
 
+    // Organization isolation
+    const orgFiltered = user => transfers.filter(t => user.role === "super-admin" || t.orgId === user.orgId);
+
     // Role-based filtering
     const user = req.user;
-    const filtered = user.role === "admin"
-      ? transfers
+    const orgScoped = orgFiltered(user);
+    const filtered = user.role === "admin" || user.role === "super-admin"
+      ? orgScoped
       : user.role === "manager"
-        ? transfers.filter(t =>
+        ? orgScoped.filter(t =>
             t.fromDepartment === user.department ||
             t.toDepartment === user.department
           )
-        : transfers.filter(t => t.requestedBy === user.userId);
+        : orgScoped.filter(t => t.requestedBy === user.userId);
 
     res.status(200).json({ success: true, count: filtered.length, data: filtered });
   } catch (error) {
@@ -64,6 +68,10 @@ exports.createTransfer = async (req, res) => {
 
     const asset = assetDoc.data();
 
+    if (req.user.role !== "super-admin" && asset.orgId !== req.user.orgId) {
+      return res.status(404).json({ success: false, message: "Asset not found" });
+    }
+
     // Manager can only request transfer for their department assets
     if (req.user.role !== "admin" && req.user.department &&
         asset.department !== req.user.department) {
@@ -78,6 +86,7 @@ exports.createTransfer = async (req, res) => {
     const requesterName = requesterDoc.exists ? requesterDoc.data().name : "Unknown";
 
     const transferRef = await db.collection("transfers").add({
+      orgId: asset.orgId,
       assetId,
       assetName:        asset.name,
       assetCode:        asset.assetCode || "",
@@ -96,9 +105,11 @@ exports.createTransfer = async (req, res) => {
       updatedAt:        admin.firestore.Timestamp.now()
     });
 
-    // Notify all admins about pending transfer request
+    // Notify all admins in this organization about pending transfer request
     const adminsSnap = await db.collection("users").where("role", "==", "admin").get();
-    const adminEmails = adminsSnap.docs.map(d => d.data().email);
+    const adminEmails = adminsSnap.docs
+      .filter(d => d.data().orgId === asset.orgId)
+      .map(d => d.data().email);
 
     if (adminEmails.length) {
       await sendEmail({
@@ -126,6 +137,7 @@ exports.createTransfer = async (req, res) => {
       title: "Transfer Request Pending",
       message: `${requesterName} requested transfer of ${asset.name} from ${asset.department} to ${toDepartment}`,
       department: "all",
+      orgId: asset.orgId,
       assetId,
       assetName: asset.name,
       triggeredBy: requesterName
@@ -155,6 +167,10 @@ exports.approveTransfer = async (req, res) => {
     }
 
     const transfer = transferDoc.data();
+
+    if (req.user.role !== "super-admin" && transfer.orgId !== req.user.orgId) {
+      return res.status(404).json({ success: false, message: "Transfer request not found" });
+    }
 
     if (transfer.status !== "pending") {
       return res.status(400).json({
@@ -191,6 +207,7 @@ exports.approveTransfer = async (req, res) => {
       assetId:   transfer.assetId,
       action:    "transfer",
       changedBy: req.user.userId,
+      orgId:     transfer.orgId,
       reason:    transfer.reason,
       oldData:   { ward: transfer.fromWard, department: transfer.fromDepartment },
       newData:   { ward: transfer.toWard,   department: transfer.toDepartment },
@@ -225,6 +242,7 @@ exports.approveTransfer = async (req, res) => {
       title: "Transfer Approved",
       message: `Transfer of ${transfer.assetName} to ${transfer.toDepartment} approved by ${approverName}`,
       department: transfer.fromDepartment,
+      orgId: transfer.orgId,
       assetId: transfer.assetId,
       assetName: transfer.assetName,
       triggeredBy: approverName,
@@ -236,6 +254,7 @@ exports.approveTransfer = async (req, res) => {
       title: "Asset Transferred In",
       message: `${transfer.assetName} has been transferred to your department from ${transfer.fromDepartment}`,
       department: transfer.toDepartment,
+      orgId: transfer.orgId,
       assetId: transfer.assetId,
       assetName: transfer.assetName,
       fromDept: transfer.fromDepartment,
@@ -247,6 +266,7 @@ exports.approveTransfer = async (req, res) => {
       assetId: transfer.assetId,
       action: "transfer_approved",
       changedBy: req.user.userId,
+      orgId: transfer.orgId,
       reason: transfer.reason,
       oldData: { ward: transfer.fromWard, department: transfer.fromDepartment },
       newData: { ward: transfer.toWard, department: transfer.toDepartment },
@@ -277,6 +297,10 @@ exports.denyTransfer = async (req, res) => {
     }
 
     const transfer = transferDoc.data();
+
+    if (req.user.role !== "super-admin" && transfer.orgId !== req.user.orgId) {
+      return res.status(404).json({ success: false, message: "Transfer request not found" });
+    }
 
     if (transfer.status !== "pending") {
       return res.status(400).json({
@@ -326,6 +350,7 @@ exports.denyTransfer = async (req, res) => {
       title: "Transfer Denied",
       message: `Transfer of ${transfer.assetName} denied by ${approverName}. Reason: ${reason || "No reason provided"}`,
       department: transfer.fromDepartment,
+      orgId: transfer.orgId,
       assetId: transfer.assetId,
       assetName: transfer.assetName,
       triggeredBy: approverName,
@@ -336,6 +361,7 @@ exports.denyTransfer = async (req, res) => {
       assetId: transfer.assetId,
       action: "transfer_denied",
       changedBy: req.user.userId,
+      orgId: transfer.orgId,
       reason: reason || "No reason provided",
       oldData: { status: "pending" },
       newData: { status: "denied", deniedReason: reason },

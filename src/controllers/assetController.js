@@ -2,6 +2,10 @@ const { db, admin } = require("../config/firebase");
 const { createNotification } = require("./notificationController");
 const generateAssetCode = require("../services/assetCodeGenerator");
 
+function sameOrg(data, req) {
+  return req.user.role === "super-admin" || data.orgId === req.user.orgId;
+}
+
 exports.getAssets = async (req, res) => {
   try {
     let query = db.collection("assets");
@@ -21,7 +25,9 @@ exports.getAssets = async (req, res) => {
     if (req.query.status) query = query.where("status", "==", req.query.status);
 
     const snapshot = await query.get();
-    const assets = snapshot.docs.map(doc => ({ assetId: doc.id, ...doc.data() }));
+    const assets = snapshot.docs
+      .map(doc => ({ assetId: doc.id, ...doc.data() }))
+      .filter(a => req.user.role === "super-admin" || a.orgId === req.user.orgId);
 
     res.status(200).json({ success: true, count: assets.length, data: assets });
   } catch (error) {
@@ -36,6 +42,11 @@ exports.getAsset = async (req, res) => {
     if (!doc.exists) return res.status(404).json({ success: false, message: "Asset not found" });
 
     const data = doc.data();
+
+    if (!sameOrg(data, req)) {
+      return res.status(404).json({ success: false, message: "Asset not found" });
+    }
+
     // Non-admin can only view their department
     if (req.user.role !== "admin" && req.user.department && data.department !== req.user.department) {
       return res.status(403).json({ success: false, message: "Access denied" });
@@ -73,6 +84,7 @@ exports.createAsset = async (req, res) => {
     }
 
     const assetData = {
+      orgId: req.user.orgId,
       assetCode: generateAssetCode(req.body.ward),
       type, name, ward, department: finalDepartment,
       assignedTo,
@@ -91,6 +103,7 @@ exports.createAsset = async (req, res) => {
     await db.collection("asset_audit").add({
       assetId: docRef.id, action: "created",
       changedBy: req.user.userId || "system",
+      orgId: req.user.orgId,
       oldData: null, newData: assetData,
       timestamp: admin.firestore.Timestamp.now()
     });
@@ -100,6 +113,7 @@ exports.createAsset = async (req, res) => {
       title: "New Asset Added",
       message: `Asset "${name}" has been added to ${finalDepartment} department`,
       department: finalDepartment,
+      orgId: req.user.orgId,
       assetId: docRef.id,
       assetName: name,
       triggeredBy: req.user.name || "Admin"
@@ -119,15 +133,22 @@ exports.updateAsset = async (req, res) => {
     if (!doc.exists) return res.status(404).json({ success: false, message: "Asset not found" });
 
     const oldData = doc.data();
+
+    if (!sameOrg(oldData, req)) {
+      return res.status(404).json({ success: false, message: "Asset not found" });
+    }
+
     if (req.user.role !== "admin" && req.user.department && oldData.department !== req.user.department) {
       return res.status(403).json({ success: false, message: "Access denied" });
     }
 
     const updateData = { ...req.body, updatedAt: admin.firestore.Timestamp.now() };
+    delete updateData.orgId;
     await docRef.update(updateData);
     await db.collection("asset_audit").add({
       assetId: id, action: "updated",
       changedBy: req.user.userId || "system",
+      orgId: oldData.orgId,
       oldData, newData: updateData,
       timestamp: admin.firestore.Timestamp.now()
     });
@@ -148,6 +169,10 @@ exports.transferAsset = async (req, res) => {
 
     const oldData = doc.data();
 
+    if (!sameOrg(oldData, req)) {
+      return res.status(404).json({ success: false, message: "Asset not found" });
+    }
+
     // Manager can only transfer assets from their own department
     if (req.user.role !== "admin" && req.user.department && oldData.department !== req.user.department) {
       return res.status(403).json({ success: false, message: "You can only transfer assets in your department" });
@@ -157,6 +182,7 @@ exports.transferAsset = async (req, res) => {
     await db.collection("asset_audit").add({
       assetId: id, action: "transfer",
       changedBy: transferredBy || req.user.userId || "system",
+      orgId: oldData.orgId,
       reason: reason || "not specified",
       oldData, newData: { ...oldData, ...updateData },
       timestamp: admin.firestore.Timestamp.now()
@@ -172,7 +198,9 @@ exports.getAssetHistory = async (req, res) => {
   try {
     const { id } = req.params;
     const snapshot = await db.collection("asset_audit").where("assetId", "==", id).get();
-    const history = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const history = snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(h => req.user.role === "super-admin" || h.orgId === req.user.orgId);
     history.sort((a, b) => b.timestamp?._seconds - a.timestamp?._seconds);
     res.status(200).json({ success: true, assetId: id, count: history.length, data: history });
   } catch (error) {
@@ -188,11 +216,17 @@ exports.deleteAsset = async (req, res) => {
     if (!doc.exists) return res.status(404).json({ success: false, message: "Asset not found" });
 
     const oldData = doc.data();
+
+    if (!sameOrg(oldData, req)) {
+      return res.status(404).json({ success: false, message: "Asset not found" });
+    }
+
     const updateData = { status: "deleted", deletedAt: admin.firestore.Timestamp.now(), updatedAt: admin.firestore.Timestamp.now() };
     await docRef.update(updateData);
     await db.collection("asset_audit").add({
       assetId: id, action: "deleted",
       changedBy: req.user.userId || "system",
+      orgId: oldData.orgId,
       reason: (req.body && req.body.reason) || "soft delete",
       oldData, newData: { ...oldData, ...updateData },
       timestamp: admin.firestore.Timestamp.now()
@@ -203,6 +237,7 @@ exports.deleteAsset = async (req, res) => {
       title: "Asset Deleted",
       message: `Asset "${oldData.name}" has been deleted from ${oldData.department} department`,
       department: oldData.department,
+      orgId: oldData.orgId,
       assetId: id,
       assetName: oldData.name,
       triggeredBy: req.user.name || "Admin"
@@ -222,6 +257,11 @@ exports.restoreAsset = async (req, res) => {
     if (!doc.exists) return res.status(404).json({ success: false, message: "Asset not found" });
 
     const oldData = doc.data();
+
+    if (!sameOrg(oldData, req)) {
+      return res.status(404).json({ success: false, message: "Asset not found" });
+    }
+
     if (oldData.status !== "deleted") return res.status(400).json({ success: false, message: "Asset is not deleted" });
 
     const updateData = { status: "active", deletedAt: null, updatedAt: admin.firestore.Timestamp.now() };
@@ -229,13 +269,7 @@ exports.restoreAsset = async (req, res) => {
     await db.collection("asset_audit").add({
       assetId: id, action: "restored",
       changedBy: req.user.userId || "system",
-      oldData, newData: { ...oldData, ...updateData },
-      timestamp: admin.firestore.Timestamp.now()
-    });
-
-    await db.collection("asset_audit").add({
-      assetId: id, action: "restored",
-      changedBy: req.user.userId || "system",
+      orgId: oldData.orgId,
       oldData, newData: { ...oldData, ...updateData },
       timestamp: admin.firestore.Timestamp.now()
     });
@@ -256,6 +290,7 @@ exports.getWardAnalytics = async (req, res) => {
     const wards = {};
     snapshot.docs.forEach(doc => {
       const data = doc.data();
+      if (req.user.role !== "super-admin" && data.orgId !== req.user.orgId) return;
       const ward = data.ward || "Unknown";
       if (!wards[ward]) wards[ward] = { ward, total: 0, active: 0, deleted: 0, totalValue: 0 };
       wards[ward].total += 1;
@@ -279,6 +314,7 @@ exports.getDepartmentAnalytics = async (req, res) => {
     const departments = {};
     snapshot.docs.forEach(doc => {
       const data = doc.data();
+      if (req.user.role !== "super-admin" && data.orgId !== req.user.orgId) return;
       const department = data.department || "Unknown";
       if (!departments[department]) departments[department] = { department, total: 0, active: 0, deleted: 0, totalValue: 0 };
       departments[department].total += 1;
@@ -302,6 +338,7 @@ exports.getTopAssetsByValue = async (req, res) => {
     const snapshot = await query.get();
     const assets = snapshot.docs.map(doc => ({ assetId: doc.id, ...doc.data() }))
       .filter(a => a.status !== "deleted")
+      .filter(a => req.user.role === "super-admin" || a.orgId === req.user.orgId)
       .sort((a, b) => (b.value || 0) - (a.value || 0))
       .slice(0, limit);
     res.status(200).json({ success: true, count: assets.length, data: assets });
@@ -320,6 +357,7 @@ exports.getMonthlyAcquisitions = async (req, res) => {
     const monthly = {};
     snapshot.docs.forEach(doc => {
       const data = doc.data();
+      if (req.user.role !== "super-admin" && data.orgId !== req.user.orgId) return;
       if (!data.createdAt) return;
       const month = data.createdAt.toDate().toISOString().slice(0, 7);
       if (!monthly[month]) monthly[month] = { month, count: 0, totalValue: 0 };
@@ -344,6 +382,7 @@ exports.getDepartmentMonthlyTrends = async (req, res) => {
     const departmentsSet = new Set();
     snapshot.docs.forEach(doc => {
       const data = doc.data();
+      if (req.user.role !== "super-admin" && data.orgId !== req.user.orgId) return;
       if (!data.createdAt) return;
       const month = data.createdAt.toDate().toISOString().slice(0, 7);
       const dept = data.department || "Unknown";
@@ -474,6 +513,7 @@ exports.bulkImportAssets = async (req, res) => {
       }
 
       const assetData = {
+        orgId: req.user.orgId,
         assetCode: generateAssetCode(String(ward)),
         type: String(type).trim(),
         name: String(name).trim(),
@@ -510,6 +550,7 @@ exports.bulkImportAssets = async (req, res) => {
         assetId: null,
         action: "bulk_import",
         changedBy: req.user.userId || "system",
+        orgId: req.user.orgId,
         oldData: null,
         newData: { imported: results.imported, failed: results.failed },
         timestamp: admin.firestore.Timestamp.now()
@@ -520,6 +561,7 @@ exports.bulkImportAssets = async (req, res) => {
         title: "Bulk Asset Import",
         message: `${results.imported} assets imported successfully${results.failed ? `, ${results.failed} rows skipped` : ""}`,
         department: "all",
+        orgId: req.user.orgId,
         triggeredBy: req.user.name || "Admin"
       });
     }
