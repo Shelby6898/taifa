@@ -364,3 +364,173 @@ exports.getDepartmentMonthlyTrends = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/*
+|--------------------------------------------------------------------------
+| BULK IMPORT TEMPLATE (Excel)
+|--------------------------------------------------------------------------
+*/
+exports.bulkImportTemplate = async (req, res) => {
+  try {
+    const ExcelJS = require("exceljs");
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Assets");
+
+    sheet.columns = [
+      { header: "type", key: "type", width: 20 },
+      { header: "name", key: "name", width: 30 },
+      { header: "ward", key: "ward", width: 20 },
+      { header: "department", key: "department", width: 20 },
+      { header: "value", key: "value", width: 15 },
+      { header: "location", key: "location", width: 25 },
+      { header: "assignedTo", key: "assignedTo", width: 25 },
+      { header: "acquisitionDate", key: "acquisitionDate", width: 18 }
+    ];
+
+    sheet.getRow(1).font = { bold: true };
+
+    sheet.addRow({
+      type: "Laptop",
+      name: "Dell Latitude 5420",
+      ward: "Bungoma Central",
+      department: "ICT",
+      value: 65000,
+      location: "ICT Office, Room 4",
+      assignedTo: "",
+      acquisitionDate: "2025-01-15"
+    });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=asset_import_template.xlsx"
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error("Template error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/*
+|--------------------------------------------------------------------------
+| BULK IMPORT ASSETS (Excel)
+|--------------------------------------------------------------------------
+*/
+exports.bulkImportAssets = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No file uploaded" });
+    }
+
+    const ExcelJS = require("exceljs");
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(req.file.buffer);
+
+    const sheet = workbook.worksheets[0];
+    const headers = [];
+    sheet.getRow(1).eachCell((cell, colNumber) => {
+      headers[colNumber] = String(cell.value || "").trim();
+    });
+
+    const results = { imported: 0, failed: 0, errors: [] };
+    let batch = db.batch();
+    let opCount = 0;
+
+    for (let rowNumber = 2; rowNumber <= sheet.rowCount; rowNumber++) {
+      const row = sheet.getRow(rowNumber);
+      const firstCell = row.getCell(1).value;
+      if (firstCell === null || firstCell === undefined || firstCell === "") continue;
+
+      const record = {};
+      headers.forEach((h, idx) => {
+        if (!h) return;
+        record[h] = row.getCell(idx).value;
+      });
+
+      const { type, name, ward, department } = record;
+      if (!type || !name || !ward || !department) {
+        results.failed++;
+        results.errors.push({
+          row: rowNumber,
+          message: "Missing required field(s): type, name, ward, department"
+        });
+        continue;
+      }
+
+      let acquisitionDate = admin.firestore.Timestamp.now();
+      if (record.acquisitionDate) {
+        const parsed = record.acquisitionDate instanceof Date
+          ? record.acquisitionDate
+          : new Date(record.acquisitionDate);
+        if (!isNaN(parsed.getTime())) {
+          acquisitionDate = admin.firestore.Timestamp.fromDate(parsed);
+        }
+      }
+
+      const assetData = {
+        assetCode: generateAssetCode(String(ward)),
+        type: String(type).trim(),
+        name: String(name).trim(),
+        ward: String(ward).trim(),
+        department: String(department).trim(),
+        assignedTo: record.assignedTo ? String(record.assignedTo).trim() : null,
+        status: "active",
+        value: Number(record.value) || 0,
+        location: record.location ? String(record.location).trim() : null,
+        photos: [],
+        acquisitionDate,
+        createdAt: admin.firestore.Timestamp.now(),
+        updatedAt: admin.firestore.Timestamp.now()
+      };
+
+      const docRef = db.collection("assets").doc();
+      batch.set(docRef, assetData);
+      opCount++;
+      results.imported++;
+
+      if (opCount >= 400) {
+        await batch.commit();
+        batch = db.batch();
+        opCount = 0;
+      }
+    }
+
+    if (opCount > 0) {
+      await batch.commit();
+    }
+
+    if (results.imported > 0) {
+      await db.collection("asset_audit").add({
+        assetId: null,
+        action: "bulk_import",
+        changedBy: req.user.userId || "system",
+        oldData: null,
+        newData: { imported: results.imported, failed: results.failed },
+        timestamp: admin.firestore.Timestamp.now()
+      });
+
+      await createNotification({
+        type: "bulk_import",
+        title: "Bulk Asset Import",
+        message: `${results.imported} assets imported successfully${results.failed ? `, ${results.failed} rows skipped` : ""}`,
+        department: "all",
+        triggeredBy: req.user.name || "Admin"
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Imported ${results.imported} asset(s)${results.failed ? `, ${results.failed} row(s) skipped` : ""}`,
+      ...results
+    });
+  } catch (err) {
+    console.error("Bulk import error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

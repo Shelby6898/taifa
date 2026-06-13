@@ -17,6 +17,10 @@ export default function Assets() {
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
   const [form, setForm] = useState({
     name: "", type: "", ward: "", department: "",
     value: "", assignedTo: "", location: "", acquisitionDate: ""
@@ -62,6 +66,40 @@ export default function Assets() {
       setMessage("❌ Failed to load assets");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const downloadTemplate = async () => {
+    try {
+      const res = await api.get("/assets/bulk-import/template", { responseType: "blob" });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "asset_import_template.xlsx");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      setMessage("❌ Failed to download template");
+    }
+  };
+
+  const handleBulkImport = async () => {
+    if (!importFile) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", importFile);
+      const res = await api.post("/assets/bulk-import", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      setImportResult(res.data);
+      loadAssets();
+    } catch (err) {
+      setImportResult({ success: false, message: err.response?.data?.message || "Import failed" });
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -167,14 +205,59 @@ export default function Assets() {
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
         <h2 style={{ margin: 0 }}>📦 Assets</h2>
-        {canEdit && (
-          <button style={styles.btn} onClick={() => { setShowForm(!showForm); setMessage(""); resetForm(); }}>
-            {showForm ? "Cancel" : "+ New Asset"}
-          </button>
-        )}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {isAdmin && (
+            <button style={styles.cancelBtn} onClick={() => { setShowBulkImport(!showBulkImport); setImportResult(null); setImportFile(null); }}>
+              {showBulkImport ? "Cancel Import" : "📥 Bulk Import"}
+            </button>
+          )}
+          {canEdit && (
+            <button style={styles.btn} onClick={() => { setShowForm(!showForm); setMessage(""); resetForm(); }}>
+              {showForm ? "Cancel" : "+ New Asset"}
+            </button>
+          )}
+        </div>
       </div>
 
       {message && <p style={{ marginTop: 10, color: message.startsWith("✅") ? "green" : "#dc2626" }}>{message}</p>}
+
+      {/* Bulk Import Panel */}
+      {showBulkImport && (
+        <div style={styles.form}>
+          <h3 style={{ margin: 0 }}>📥 Bulk Import Assets</h3>
+          <p style={{ color: "#64748b", fontSize: 14 }}>
+            Download the template, fill in your asset details, then upload the completed file.
+            Required columns: <strong>type, name, ward, department</strong>.
+          </p>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+            <button style={styles.cancelBtn} onClick={downloadTemplate}>⬇️ Download Template</button>
+          </div>
+          <input
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={e => { setImportFile(e.target.files[0]); setImportResult(null); }}
+            style={{ marginBottom: 12 }}
+          />
+          <div style={{ display: "flex", gap: 10 }}>
+            <button style={styles.btn} onClick={handleBulkImport} disabled={!importFile || importing}>
+              {importing ? "Importing..." : "Upload & Import"}
+            </button>
+          </div>
+          {importResult && (
+            <div style={{ marginTop: 12, padding: 12, borderRadius: 8, background: importResult.success ? "#f0fdf4" : "#fef2f2", border: `1px solid ${importResult.success ? "#86efac" : "#fca5a5"}` }}>
+              <p style={{ margin: 0, fontWeight: 600, color: importResult.success ? "#15803d" : "#dc2626" }}>{importResult.message}</p>
+              {importResult.errors && importResult.errors.length > 0 && (
+                <ul style={{ marginTop: 8, marginBottom: 0, paddingLeft: 20, fontSize: 13, color: "#991b1b" }}>
+                  {importResult.errors.slice(0, 10).map((e, idx) => (
+                    <li key={idx}>Row {e.row}: {e.message}</li>
+                  ))}
+                  {importResult.errors.length > 10 && <li>...and {importResult.errors.length - 10} more</li>}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Create Form */}
       {showForm && (

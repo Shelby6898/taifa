@@ -1,10 +1,13 @@
 const express = require("express");
 const router = express.Router();
+const multer = require("multer");
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 const {
   getAssets, createAsset, getAsset, updateAsset,
   transferAsset, getAssetHistory, deleteAsset, restoreAsset,
   getWardAnalytics, getDepartmentAnalytics, getTopAssetsByValue,
-  getMonthlyAcquisitions, getDepartmentMonthlyTrends
+  getMonthlyAcquisitions, getDepartmentMonthlyTrends,
+  bulkImportAssets, bulkImportTemplate
 } = require("../controllers/assetController");
 const { authenticate, authorizeRoles } = require("../middleware/authMiddleware");
 
@@ -16,6 +19,10 @@ router.get("/analytics/departments", getDepartmentAnalytics);
 router.get("/analytics/top-value", getTopAssetsByValue);
 router.get("/analytics/monthly-acquisitions", getMonthlyAcquisitions);
 router.get("/analytics/department-monthly-trends", getDepartmentMonthlyTrends);
+
+router.get("/bulk-import/template", bulkImportTemplate);
+router.post("/bulk-import", authorizeRoles("admin"), upload.single("file"), bulkImportAssets);
+
 router.get("/:id/history", getAssetHistory);
 router.get("/:id", getAsset);
 router.get("/", getAssets);
