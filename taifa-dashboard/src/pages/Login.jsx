@@ -1,11 +1,16 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { api } from "../api";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [form, setForm] = useState({ email: "", password: "" });
-  const [error, setError] = useState("");
+  const [error, setError] = useState(
+    location.state?.reason === "inactivity"
+      ? "You were logged out due to inactivity. Please sign in again."
+      : ""
+  );
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
