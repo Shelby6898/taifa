@@ -44,6 +44,7 @@ exports.register = async (req, res) => {
       passwordHash,
       role: role || "viewer",
       department: department || null,
+      orgId: req.body.orgId || null,
 
       createdAt:
         admin.firestore.Timestamp.now()
@@ -123,6 +124,7 @@ exports.login = async (req, res) => {
         userId: userDoc.id,
         role: user.role,
         department: user.department,
+        orgId: user.orgId || null,
         name: user.name || ""
       },
       JWT_SECRET,
@@ -139,7 +141,8 @@ exports.login = async (req, res) => {
         id: userDoc.id,
         name: user.name,
         role: user.role,
-        department: user.department
+        department: user.department,
+        orgId: user.orgId || null
       }
     });
 
@@ -163,6 +166,7 @@ exports.getUsers = async (req, res) => {
       email: doc.data().email,
       role: doc.data().role,
       department: doc.data().department,
+      orgId: doc.data().orgId || null,
       createdAt: doc.data().createdAt?.toDate().toISOString()
     }));
     res.json({ success: true, count: users.length, data: users });
@@ -248,6 +252,7 @@ exports.getProfile = async (req, res) => {
         email: data.email,
         role: data.role,
         department: data.department,
+        orgId: data.orgId || null,
         createdAt: data.createdAt?.toDate().toISOString()
       }
     });
