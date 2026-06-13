@@ -21,16 +21,16 @@ router.get("/analytics/monthly-acquisitions", getMonthlyAcquisitions);
 router.get("/analytics/department-monthly-trends", getDepartmentMonthlyTrends);
 
 router.get("/bulk-import/template", bulkImportTemplate);
-router.post("/bulk-import", authorizeRoles("admin"), upload.single("file"), bulkImportAssets);
+router.post("/bulk-import", authorizeRoles("admin", "super-admin"), upload.single("file"), bulkImportAssets);
 
 router.get("/:id/history", getAssetHistory);
 router.get("/:id", getAsset);
 router.get("/", getAssets);
 
-router.post("/", authorizeRoles("admin", "manager"), createAsset);
-router.put("/:id", authorizeRoles("admin", "manager"), updateAsset);
-router.post("/:id/transfer", authorizeRoles("admin", "manager"), transferAsset);
-router.delete("/:id", authorizeRoles("admin"), deleteAsset);
-router.patch("/:id/restore", authorizeRoles("admin"), restoreAsset);
+router.post("/", authorizeRoles("admin", "manager", "super-admin"), createAsset);
+router.put("/:id", authorizeRoles("admin", "manager", "super-admin"), updateAsset);
+router.post("/:id/transfer", authorizeRoles("admin", "manager", "super-admin"), transferAsset);
+router.delete("/:id", authorizeRoles("admin", "super-admin"), deleteAsset);
+router.patch("/:id/restore", authorizeRoles("admin", "super-admin"), restoreAsset);
 
 module.exports = router;

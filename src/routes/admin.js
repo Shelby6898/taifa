@@ -3,7 +3,7 @@ const router = express.Router();
 const { db } = require('../config/firebase');
 const { authenticate } = require('../middleware/authMiddleware');
 const { authorizeRoles } = require('../middleware/authMiddleware');
-const isAdmin = authorizeRoles('admin');
+const isAdmin = authorizeRoles('admin', 'super-admin');
 
 router.get('/agents', authenticate, isAdmin, async (req, res, next) => {
   try {

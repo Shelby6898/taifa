@@ -5,7 +5,7 @@ const PDFDocument = require('pdfkit');
 const { db } = require('../config/firebase');
 const { authenticate } = require('../middleware/authMiddleware');
 const { authorizeRoles } = require('../middleware/authMiddleware');
-const isAdmin = authorizeRoles('admin');
+const isAdmin = authorizeRoles('admin', 'super-admin');
 
 // ── Helper: fetch and filter tickets ──
 async function getTickets(query) {

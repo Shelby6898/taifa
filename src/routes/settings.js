@@ -28,7 +28,7 @@ router.get("/", async (req, res) => {
 });
 
 // UPDATE system settings (admin only)
-router.put("/", authorizeRoles("admin"), async (req, res) => {
+router.put("/", authorizeRoles("admin", "super-admin"), async (req, res) => {
   try {
     await db.collection("settings").doc("system").set({
       ...req.body,

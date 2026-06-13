@@ -3,7 +3,7 @@ const router = express.Router({ mergeParams: true });
 const { db, admin } = require('../config/firebase');
 const { sendEmail } = require('../services/email');
 const { authenticate, authorizeRoles } = require('../middleware/authMiddleware');
-const canComment = authorizeRoles('admin', 'manager', 'viewer', 'user');
+const canComment = authorizeRoles('admin', 'manager', 'viewer', 'user', 'super-admin');
 
 // ─────────────────────────────────────────
 //  GET COMMENTS FOR A TICKET

@@ -12,12 +12,12 @@ const { db, admin } = require("../config/firebase");
 router.use(authenticate);
 
 router.get("/",    getTransfers);
-router.post("/",   authorizeRoles("admin", "manager"), createTransfer);
-router.patch("/:id/approve", authorizeRoles("admin"), approveTransfer);
-router.patch("/:id/deny",    authorizeRoles("admin"), denyTransfer);
+router.post("/",   authorizeRoles("admin", "manager", "super-admin"), createTransfer);
+router.patch("/:id/approve", authorizeRoles("admin", "super-admin"), approveTransfer);
+router.patch("/:id/deny",    authorizeRoles("admin", "super-admin"), denyTransfer);
 
 // DIRECT TRANSFER (admin only) - executes immediately and logs record
-router.post("/direct", authenticate, authorizeRoles("admin"), async (req, res) => {
+router.post("/direct", authenticate, authorizeRoles("admin", "super-admin"), async (req, res) => {
   try {
     const { assetId, toWard, toDepartment, reason } = req.body;
     if (!assetId || !toWard || !toDepartment) {

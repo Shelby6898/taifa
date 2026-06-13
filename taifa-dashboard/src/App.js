@@ -10,6 +10,7 @@ import Notifications from "./pages/Notifications";
 import Depreciation from "./pages/Depreciation";
 import ICTHelpdesk from "./pages/ICTHelpdesk";
 import Settings from "./pages/Settings";
+import Organizations from "./pages/Organizations";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 export default function App() {
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="depreciation"  element={<Depreciation />} />
           <Route path="ict-helpdesk"  element={<ICTHelpdesk />} />
           <Route path="settings"       element={<Settings />} />
+          <Route path="organizations" element={<Organizations />} />
         </Route>
       </Routes>
     </BrowserRouter>

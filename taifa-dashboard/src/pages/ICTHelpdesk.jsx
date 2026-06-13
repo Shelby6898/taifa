@@ -38,7 +38,7 @@ function fmtDuration(minutes) {
 export default function ICTHelpdesk() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const isAdmin = ["admin", "manager"].includes(user.role);
-  const canManage = user.role === "admin";
+  const canManage = user.role === "admin" || user.role === "super-admin";
 
   const [tickets, setTickets]     = useState([]);
   const [agents, setAgents]       = useState([]);

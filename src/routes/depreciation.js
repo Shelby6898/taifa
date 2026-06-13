@@ -4,7 +4,7 @@ const { getDepreciationReport, getAssetDepreciation } = require("../controllers/
 const { authenticate, authorizeRoles } = require("../middleware/authMiddleware");
 
 router.use(authenticate);
-router.use(authorizeRoles("admin", "manager"));
+router.use(authorizeRoles("admin", "manager", "super-admin"));
 router.get("/", getDepreciationReport);
 router.get("/:id", getAssetDepreciation);
 

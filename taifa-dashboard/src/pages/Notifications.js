@@ -112,7 +112,7 @@ export default function Notifications() {
               {!n.isRead && (
                 <button style={styles.readBtn} onClick={() => markRead(n.id)}>Read</button>
               )}
-              {user.role === "admin" && (
+              {(user.role === "admin" || user.role === "super-admin") && (
                 <button style={styles.deleteBtn} onClick={() => deleteNotif(n.id)}>✕</button>
               )}
             </div>

@@ -21,7 +21,7 @@ export default function Reports() {
       const [s, a, u] = await Promise.all([
         api.get("/reports/summary"),
         !isViewer ? api.get("/reports/audit").catch(() => ({ data: { data: [] } })) : Promise.resolve({ data: { data: [] } }),
-        user.role === "admin" ? api.get("/reports/user-audit").catch(() => ({ data: { data: [] } })) : Promise.resolve({ data: { data: [] } })
+        (user.role === "admin" || user.role === "super-admin") ? api.get("/reports/user-audit").catch(() => ({ data: { data: [] } })) : Promise.resolve({ data: { data: [] } })
       ]);
       setSummary(s.data.data);
       setAudit(a.data.data);
@@ -181,7 +181,7 @@ export default function Reports() {
     { key: "byDepartment", label: "By Dept" },
     { key: "byType", label: "By Type" },
     ...(!isViewer ? [{ key: "audit", label: "Audit Log" }] : []),
-    ...(user.role === "admin" ? [{ key: "userAudit", label: "User Audit" }] : [])
+    ...((user.role === "admin" || user.role === "super-admin") ? [{ key: "userAudit", label: "User Audit" }] : [])
   ];
 
   const isSummaryTab = ["summary", "byWard", "byDepartment", "byType"].includes(tab);

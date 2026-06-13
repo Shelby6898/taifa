@@ -197,7 +197,7 @@ export default function Maintenance() {
             {canEdit && (
               <div style={{ display: "flex", gap: 6, flexShrink: 0, flexDirection: "column" }}>
                 <button style={styles.editBtn} onClick={() => { setEditRecord({ ...r }); setMessage(""); }}>Update</button>
-                {user.role === "admin" && (
+                {(user.role === "admin" || user.role === "super-admin") && (
                   <button style={styles.deleteBtn} onClick={() => handleDelete(r.id)}>Delete</button>
                 )}
               </div>

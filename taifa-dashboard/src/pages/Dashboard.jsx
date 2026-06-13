@@ -12,6 +12,7 @@ const navItems = [
   { path: "/dashboard/notifications",icon: "🔔", label: "Notifications", showBadge: true },
   { path: "/dashboard/ict-helpdesk", icon: "🎫", label: "Taifa Helpdesk" },
   { path: "/dashboard/users",        icon: "👥", label: "Users",  adminOnly: true },
+  { path: "/dashboard/organizations", icon: "🏢", label: "Organizations", superAdminOnly: true },
   { path: "/dashboard/settings",     icon: "⚙️", label: "Settings" },
 ];
 
@@ -75,7 +76,8 @@ export default function Dashboard() {
   };
 
   const visibleNav = navItems.filter(n => {
-    if (n.adminOnly && user.role !== "admin") return false;
+    if (n.adminOnly && user.role !== "admin" && user.role !== "super-admin") return false;
+    if (n.superAdminOnly && user.role !== "super-admin") return false;
     if (n.hideViewer && user.role === "viewer") return false;
     return true;
   });

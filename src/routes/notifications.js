@@ -12,6 +12,6 @@ router.use(authenticate);
 router.get("/", getNotifications);
 router.put("/:id/read", markAsRead);
 router.put("/mark-all/read", markAllAsRead);
-router.delete("/:id", authorizeRoles("admin"), deleteNotification);
+router.delete("/:id", authorizeRoles("admin", "super-admin"), deleteNotification);
 
 module.exports = router;
