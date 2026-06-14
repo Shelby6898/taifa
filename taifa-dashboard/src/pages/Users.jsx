@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import useOrg from "../hooks/useOrg";
 
 const ROLES = ["admin", "manager", "viewer"];
-const DEPARTMENTS = ["Finance", "ICT", "Health", "Education", "Roads", "Water", "Administration"];
+
 
 export default function Users() {
+  const { org } = useOrg();
+  const DEPARTMENTS = org?.units || [];
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);

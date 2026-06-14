@@ -14,6 +14,7 @@ const navItems = [
   { path: "/dashboard/users",        icon: "👥", label: "Users",  adminOnly: true },
   { path: "/dashboard/organizations", icon: "🏢", label: "Organizations", superAdminOnly: true },
   { path: "/dashboard/settings",     icon: "⚙️", label: "Settings" },
+  { path: "/dashboard/org-settings", icon: "🏢", label: "Org Settings", adminOnly: true },
 ];
 
 export default function Dashboard() {
