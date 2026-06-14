@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { db, admin } = require("../config/firebase");
-const { authenticate, authorizeRoles } = require("../middleware/authMiddleware");
+const { authenticate, authorizeRoles, authorizeWrite } = require("../middleware/authMiddleware");
 
 router.use(authenticate);
 
@@ -28,7 +28,7 @@ router.get("/", async (req, res) => {
 });
 
 // UPDATE system settings (admin only)
-router.put("/", authorizeRoles("admin", "super-admin"), async (req, res) => {
+router.put("/", authorizeWrite("admin"), async (req, res) => {
   try {
     await db.collection("settings").doc("system").set({
       ...req.body,

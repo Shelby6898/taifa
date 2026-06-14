@@ -4,9 +4,9 @@ const { db, admin } = require('../config/firebase');
 const { sendEmail } = require('../services/email');
 const { authenticate } = require('../middleware/authMiddleware');
 const { createNotification } = require('../controllers/notificationController');
-const { authorizeRoles } = require('../middleware/authMiddleware');
-const isAdmin = authorizeRoles('admin', 'super-admin');
-const canSubmit = authorizeRoles('admin', 'manager', 'viewer', 'user');
+const { authorizeRoles, authorizeWrite } = require('../middleware/authMiddleware');
+const isAdmin = authorizeWrite('admin');
+const canSubmit = authorizeWrite('admin', 'manager', 'viewer', 'user');
 
 const VALID_CATEGORIES = ['hardware', 'software', 'network', 'account', 'other'];
 const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];

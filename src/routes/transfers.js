@@ -6,18 +6,18 @@ const {
   approveTransfer,
   denyTransfer
 } = require("../controllers/transferController");
-const { authenticate, authorizeRoles } = require("../middleware/authMiddleware");
+const { authenticate, authorizeRoles, authorizeWrite } = require("../middleware/authMiddleware");
 const { db, admin } = require("../config/firebase");
 
 router.use(authenticate);
 
 router.get("/",    getTransfers);
-router.post("/",   authorizeRoles("admin", "manager", "super-admin"), createTransfer);
-router.patch("/:id/approve", authorizeRoles("admin", "super-admin"), approveTransfer);
-router.patch("/:id/deny",    authorizeRoles("admin", "super-admin"), denyTransfer);
+router.post("/",   authorizeWrite("admin", "manager"), createTransfer);
+router.patch("/:id/approve", authorizeWrite("admin"), approveTransfer);
+router.patch("/:id/deny",    authorizeWrite("admin"), denyTransfer);
 
 // DIRECT TRANSFER (admin only) - executes immediately and logs record
-router.post("/direct", authenticate, authorizeRoles("admin", "super-admin"), async (req, res) => {
+router.post("/direct", authenticate, authorizeWrite("admin"), async (req, res) => {
   try {
     const { assetId, toWard, toDepartment, reason } = req.body;
     if (!assetId || !toWard || !toDepartment) {
@@ -27,6 +27,10 @@ router.post("/direct", authenticate, authorizeRoles("admin", "super-admin"), asy
     const assetDoc = await db.collection("assets").doc(assetId).get();
     if (!assetDoc.exists) return res.status(404).json({ success: false, message: "Asset not found" });
     const asset = assetDoc.data();
+
+    if (asset.orgId !== req.user.orgId) {
+      return res.status(404).json({ success: false, message: "Asset not found" });
+    }
 
     const requesterDoc = await db.collection("users").doc(req.user.userId).get();
     const requesterName = requesterDoc.exists ? requesterDoc.data().name : "Admin";
@@ -41,6 +45,7 @@ router.post("/direct", authenticate, authorizeRoles("admin", "super-admin"), asy
 
     // Create transfer record as approved
     await db.collection("transfers").add({
+      orgId: asset.orgId,
       assetId,
       assetName: asset.name,
       assetCode: asset.assetCode || "",
@@ -63,6 +68,7 @@ router.post("/direct", authenticate, authorizeRoles("admin", "super-admin"), asy
     // Audit log
     await db.collection("asset_audit").add({
       assetId,
+      orgId: asset.orgId,
       action: "transfer",
       changedBy: req.user.userId,
       reason: reason || "Direct transfer by admin",

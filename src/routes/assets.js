@@ -9,7 +9,7 @@ const {
   getMonthlyAcquisitions, getDepartmentMonthlyTrends,
   bulkImportAssets, bulkImportTemplate
 } = require("../controllers/assetController");
-const { authenticate, authorizeRoles } = require("../middleware/authMiddleware");
+const { authenticate, authorizeRoles, authorizeWrite } = require("../middleware/authMiddleware");
 
 // Apply auth to all routes
 router.use(authenticate);
@@ -21,16 +21,16 @@ router.get("/analytics/monthly-acquisitions", getMonthlyAcquisitions);
 router.get("/analytics/department-monthly-trends", getDepartmentMonthlyTrends);
 
 router.get("/bulk-import/template", bulkImportTemplate);
-router.post("/bulk-import", authorizeRoles("admin", "super-admin"), upload.single("file"), bulkImportAssets);
+router.post("/bulk-import", authorizeWrite("admin"), upload.single("file"), bulkImportAssets);
 
 router.get("/:id/history", getAssetHistory);
 router.get("/:id", getAsset);
 router.get("/", getAssets);
 
-router.post("/", authorizeRoles("admin", "manager", "super-admin"), createAsset);
-router.put("/:id", authorizeRoles("admin", "manager", "super-admin"), updateAsset);
-router.post("/:id/transfer", authorizeRoles("admin", "manager", "super-admin"), transferAsset);
-router.delete("/:id", authorizeRoles("admin", "super-admin"), deleteAsset);
-router.patch("/:id/restore", authorizeRoles("admin", "super-admin"), restoreAsset);
+router.post("/", authorizeWrite("admin", "manager"), createAsset);
+router.put("/:id", authorizeWrite("admin", "manager"), updateAsset);
+router.post("/:id/transfer", authorizeWrite("admin", "manager"), transferAsset);
+router.delete("/:id", authorizeWrite("admin"), deleteAsset);
+router.patch("/:id/restore", authorizeWrite("admin"), restoreAsset);
 
 module.exports = router;
