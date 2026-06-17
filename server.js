@@ -2,6 +2,7 @@ require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
+const morgan = require("morgan");
 const path = require("path");
 
 const app = express();
@@ -23,6 +24,7 @@ const NODE_ENV = process.env.NODE_ENV || "development";
 */
 
 app.use(cors());
+app.use(morgan("combined"));
 
 app.use(express.json({
   limit: "10mb"
