@@ -6,6 +6,7 @@ const morgan = require("morgan");
 const path = require("path");
 
 const app = express();
+app.set("trust proxy", true);
 
 /*
 |--------------------------------------------------------------------------
@@ -24,7 +25,7 @@ const NODE_ENV = process.env.NODE_ENV || "development";
 */
 
 app.use(cors());
-app.use(morgan("combined"));
+app.use(morgan(":req[x-forwarded-for] - :remote-user [:date[clf]] \":method :url HTTP/:http-version\" :status :res[content-length] \":referrer\" \":user-agent\""));
 
 app.use(express.json({
   limit: "10mb"
