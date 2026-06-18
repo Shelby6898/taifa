@@ -121,8 +121,21 @@ app.use("/api/organizations", require("./src/routes/organizations"));
 */
 const buildPath = path.join(__dirname, "taifa-dashboard/build");
 app.use(express.static(buildPath));
+// Common scanner/bot probe patterns - reject straight to 404 instead of
+// serving the React app shell (keeps logs clean and avoids wasted bandwidth)
+const BOT_PROBE_PATTERNS = [
+  /^\/wp-/i,           // wp-admin, wp-login, wp-content, etc.
+  /^\/xmlrpc\.php/i,
+  /^\/\.env/i,
+  /^\/\.git/i,
+  /^\/phpmyadmin/i,
+  /^\/admin\.php/i,
+  /^\/config\.php/i,
+];
+
 app.get("/{*path}", (req, res, next) => {
   if (req.path.startsWith("/api") || req.path.startsWith("/assets/view")) return next();
+  if (BOT_PROBE_PATTERNS.some(pattern => pattern.test(req.path))) return next();
   const indexPath = path.join(buildPath, "index.html");
   require("fs").existsSync(indexPath) ? res.sendFile(indexPath) : next();
 });
