@@ -14,7 +14,7 @@ const navItems = [
   { path: "/dashboard/users",        icon: "👥", label: "Users",  adminOnly: true },
   { path: "/dashboard/organizations", icon: "🏢", label: "Organizations", superAdminOnly: true },
   { path: "/dashboard/settings",     icon: "⚙️", label: "Settings" },
-  { path: "/dashboard/org-settings", icon: "🏢", label: "Org Settings", adminOnly: true },
+  { path: "/dashboard/org-settings", icon: "🏢", label: "Org Settings", adminOnly: true, hideSuperAdmin: true },
 ];
 
 export default function Dashboard() {
@@ -80,6 +80,7 @@ export default function Dashboard() {
     if (n.adminOnly && user.role !== "admin" && user.role !== "super-admin") return false;
     if (n.superAdminOnly && user.role !== "super-admin") return false;
     if (n.hideViewer && user.role === "viewer") return false;
+    if (n.hideSuperAdmin && user.role === "super-admin") return false;
     return true;
   });
   const isHome = location.pathname === "/dashboard";
