@@ -3,10 +3,11 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
+const rateLimit = require("express-rate-limit");
 const path = require("path");
 
 const app = express();
-app.set("trust proxy", true);
+app.set("trust proxy", 2); // trust exactly 2 hops: Cloudflare + Render internal LB
 
 /*
 |--------------------------------------------------------------------------
@@ -26,6 +27,27 @@ const NODE_ENV = process.env.NODE_ENV || "development";
 
 app.use(cors());
 app.use(morgan(":req[x-forwarded-for] - :remote-user [:date[clf]] \":method :url HTTP/:http-version\" :status :res[content-length] \":referrer\" \":user-agent\""));
+
+// General rate limit - applies to all routes, protects against scraping/DoS abuse
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200,                 // 200 requests per IP per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: "Too many requests. Please try again later." }
+});
+
+// Strict rate limit for login - protects against brute-force password guessing
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 8,                   // 8 login attempts per IP per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true, // only count failed attempts against the limit
+  message: { success: false, message: "Too many login attempts. Please try again in 15 minutes." }
+});
+
+app.use(generalLimiter);
 
 app.use(express.json({
   limit: "10mb"
@@ -71,6 +93,11 @@ app.get("/api/health", (req, res) => {
 | API Routes
 |--------------------------------------------------------------------------
 */
+
+app.use(
+  "/api/auth/login",
+  loginLimiter
+);
 
 app.use(
   "/api/auth",
