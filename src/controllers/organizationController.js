@@ -1,5 +1,8 @@
 const { db, admin } = require("../config/firebase");
 const bcrypt = require("bcryptjs");
+const cache = require("../utils/cache");
+
+const ORG_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 /*
 |--------------------------------------------------------------------------
@@ -93,9 +96,20 @@ exports.getMyOrganization = async (req, res) => {
     if (!req.user.orgId) {
       return res.status(404).json({ success: false, message: "No organization associated with this account" });
     }
+
+    const cacheKey = `org:${req.user.orgId}`;
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return res.json({ success: true, data: cached, cached: true });
+    }
+
     const doc = await db.collection("organizations").doc(req.user.orgId).get();
     if (!doc.exists) return res.status(404).json({ success: false, message: "Organization not found" });
-    res.json({ success: true, data: { id: doc.id, ...doc.data() } });
+
+    const data = { id: doc.id, ...doc.data() };
+    cache.set(cacheKey, data, ORG_CACHE_TTL_MS);
+
+    res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -122,6 +136,7 @@ exports.updateMyOrganization = async (req, res) => {
     if (unitLabelPlural) updateData.unitLabelPlural = unitLabelPlural;
 
     await db.collection("organizations").doc(req.user.orgId).update(updateData);
+    cache.del(`org:${req.user.orgId}`);
     res.json({ success: true, message: "Organization updated successfully" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

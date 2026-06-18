@@ -1,8 +1,17 @@
 const { db } = require("../config/firebase");
+const cache = require("../utils/cache");
+
+const SUMMARY_CACHE_TTL_MS = 60 * 1000; // 60 seconds - short, since many controllers write to assets
 
 // Full summary report
 exports.getSummaryReport = async (req, res) => {
   try {
+    const cacheKey = `summary:${req.user.orgId || "super-admin"}:${req.user.role}:${req.user.department || "-"}:${req.user.name || "-"}`;
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return res.status(200).json({ ...cached, cached: true });
+    }
+
     let query = db.collection("assets");
     if (req.user.role === "manager" && req.user.department) {
       query = query.where("department", "==", req.user.department);
@@ -49,7 +58,7 @@ exports.getSummaryReport = async (req, res) => {
       byType[t].totalValue += a.value || 0;
     });
 
-    res.status(200).json({
+    const responsePayload = {
       success: true,
       data: {
         summary: { total, active, deleted, maintenance, totalValue },
@@ -57,7 +66,10 @@ exports.getSummaryReport = async (req, res) => {
         byDepartment: Object.values(byDept),
         byType: Object.values(byType)
       }
-    });
+    };
+
+    cache.set(cacheKey, responsePayload, SUMMARY_CACHE_TTL_MS);
+    res.status(200).json(responsePayload);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
