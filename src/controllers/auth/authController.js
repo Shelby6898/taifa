@@ -2,6 +2,8 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 const { db, admin } = require("../../config/firebase");
+const crypto = require("crypto");
+const { sendEmail } = require("../../services/email");
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "secret_key";
@@ -335,6 +337,121 @@ exports.changePassword = async (req, res) => {
 
     res.json({ success: true, message: "Password changed successfully" });
   } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/*
+|--------------------------------------------------------------------------
+| FORGOT PASSWORD - request a reset link
+|--------------------------------------------------------------------------
+| Always responds with a generic success message, regardless of whether
+| the email exists, to avoid revealing which emails are registered users.
+*/
+
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email is required" });
+    }
+
+    const genericResponse = {
+      success: true,
+      message: "If an account with that email exists, a password reset link has been sent."
+    };
+
+    const snapshot = await db.collection("users").where("email", "==", email).get();
+    if (snapshot.empty) {
+      // Do not reveal whether the email exists - same response either way
+      return res.status(200).json(genericResponse);
+    }
+
+    const userDoc = snapshot.docs[0];
+    const user = userDoc.data();
+
+    // Generate a secure random token; store only its hash, never the raw token
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const expiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + 30 * 60 * 1000); // 30 minutes
+
+    await db.collection("passwordResets").add({
+      userId: userDoc.id,
+      tokenHash,
+      expiresAt,
+      used: false,
+      createdAt: admin.firestore.Timestamp.now()
+    });
+
+    const resetLink = `${process.env.BASE_URL}/reset-password?token=${rawToken}`;
+
+    await sendEmail({
+      to: email,
+      subject: "Reset your Taifatech password",
+      html: `
+        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+          <h2 style="color:#1e293b;">Taifatech — Password Reset</h2>
+          <p>Hi ${user.name || "there"},</p>
+          <p>We received a request to reset your Taifatech password. This link expires in 30 minutes.</p>
+          <a href="${resetLink}" style="display:inline-block;padding:10px 20px;background:#0d9488;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">Reset Password →</a>
+          <p style="margin-top:24px;color:#64748b;font-size:13px;">If you didn't request this, you can safely ignore this email — your password will not be changed.</p>
+        </div>
+      `
+    });
+
+    res.status(200).json(genericResponse);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/*
+|--------------------------------------------------------------------------
+| RESET PASSWORD - consume a valid token and set a new password
+|--------------------------------------------------------------------------
+*/
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      return res.status(400).json({ success: false, message: "Token and new password are required" });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: "New password must be at least 6 characters" });
+    }
+
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+    const snapshot = await db.collection("passwordResets")
+      .where("tokenHash", "==", tokenHash)
+      .where("used", "==", false)
+      .get();
+
+    if (snapshot.empty) {
+      return res.status(400).json({ success: false, message: "Invalid or expired reset link" });
+    }
+
+    const resetDoc = snapshot.docs[0];
+    const resetData = resetDoc.data();
+
+    if (resetData.expiresAt.toMillis() < Date.now()) {
+      return res.status(400).json({ success: false, message: "Invalid or expired reset link" });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await db.collection("users").doc(resetData.userId).update({
+      passwordHash,
+      updatedAt: admin.firestore.Timestamp.now()
+    });
+
+    // Mark token as used so it cannot be replayed
+    await resetDoc.ref.update({ used: true, usedAt: admin.firestore.Timestamp.now() });
+
+    res.status(200).json({ success: true, message: "Password reset successfully. You can now log in." });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ success: false, message: err.message });
   }
 };

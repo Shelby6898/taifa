@@ -47,6 +47,15 @@ const loginLimiter = rateLimit({
   message: { success: false, message: "Too many login attempts. Please try again in 15 minutes." }
 });
 
+// Rate limit for forgot-password - prevents spamming reset emails to a target inbox
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 3,                   // 3 reset requests per IP per window (no skipSuccessfulRequests - every attempt counts)
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: "Too many password reset requests. Please try again in 15 minutes." }
+});
+
 app.use(generalLimiter);
 
 app.use(express.json({
@@ -97,6 +106,11 @@ app.get("/api/health", (req, res) => {
 app.use(
   "/api/auth/login",
   loginLimiter
+);
+
+app.use(
+  "/api/auth/forgot-password",
+  forgotPasswordLimiter
 );
 
 app.use(

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { api } from "../api";
 
 export default function Login() {
@@ -58,6 +58,7 @@ export default function Login() {
         <button style={styles.btn} onClick={handleSubmit} disabled={loading}>
           {loading ? "Signing in..." : "Sign In"}
         </button>
+        <Link to="/forgot-password" style={styles.forgotLink}>Forgot password?</Link>
       </div>
     </div>
   );
@@ -102,5 +103,12 @@ const styles = {
     fontSize: 15,
     cursor: "pointer",
     fontWeight: "bold"
+  },
+  forgotLink: {
+    color: "#06122b",
+    fontSize: 13,
+    textAlign: "center",
+    textDecoration: "none",
+    marginTop: 2
   }
 };

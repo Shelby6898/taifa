@@ -12,6 +12,8 @@ import ICTHelpdesk from "./pages/ICTHelpdesk";
 import Settings from "./pages/Settings";
 import Organizations from "./pages/Organizations";
 import OrgSettings from "./pages/OrgSettings";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 export default function App() {
@@ -20,6 +22,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>}>
           <Route path="assets"        element={<Assets />} />
           <Route path="transfers"     element={<Transfers />} />
