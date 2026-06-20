@@ -1,12 +1,34 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import useOrg from "../hooks/useOrg";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 
+// Shared PDF header: shows the organization's logo (if one has been
+// uploaded in Org Settings) next to the report title. Falls back to a
+// generic title with no logo if the org has none, or if embedding the
+// image fails for any reason (corrupt data, unsupported format, etc.).
+function addReportHeader(doc, org, subtitle, date) {
+  let textX = 14;
+  if (org?.logoUrl) {
+    try {
+      doc.addImage(org.logoUrl, "PNG", 14, 8, 18, 18);
+      textX = 36;
+    } catch (e) {
+      // fall back to text-only header
+    }
+  }
+  doc.setFontSize(16);
+  doc.text(org?.name || "Taifa Asset Management System", textX, 15);
+  doc.setFontSize(11);
+  doc.text(`${subtitle} — ${date}`, textX, 23);
+}
+
 export default function Reports() {
   const [summary, setSummary] = useState(null);
+  const { org } = useOrg();
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const isViewer = user.role === "viewer";
   const [audit, setAudit] = useState([]);
@@ -38,10 +60,7 @@ export default function Reports() {
     const doc = new jsPDF();
     const date = new Date().toLocaleDateString();
 
-    doc.setFontSize(16);
-    doc.text("Taifa Asset Management System", 14, 15);
-    doc.setFontSize(11);
-    doc.text(`Summary Report — ${date}`, 14, 23);
+    addReportHeader(doc, org, "Summary Report", date);
 
     // Summary cards
     autoTable(doc, {
@@ -94,10 +113,7 @@ export default function Reports() {
     const doc = new jsPDF();
     const date = new Date().toLocaleDateString();
 
-    doc.setFontSize(16);
-    doc.text("Taifa Asset Management System", 14, 15);
-    doc.setFontSize(11);
-    doc.text(`Audit Log Report — ${date}`, 14, 23);
+    addReportHeader(doc, org, "Audit Log Report", date);
 
     autoTable(doc, {
       startY: 30,
