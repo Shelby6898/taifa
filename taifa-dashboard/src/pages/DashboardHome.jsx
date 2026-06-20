@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
+import useOrg from "../hooks/useOrg";
 import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid
@@ -12,6 +13,7 @@ export default function DashboardHome() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const navigate = useNavigate();
   const isViewer = user.role === "viewer";
+  const { org } = useOrg();
 
   const [summary,   setSummary]   = useState(null);
   const [tickets,   setTickets]   = useState([]);
@@ -110,7 +112,9 @@ export default function DashboardHome() {
 
   const styles = {
     container:  { padding: "24px", fontFamily: "sans-serif" },
-    welcome:    { marginBottom: 24 },
+    welcomeRow: { display: "flex", alignItems: "center", gap: 14, marginBottom: 24 },
+    welcomeLogo: { width: 48, height: 48, borderRadius: 10, objectFit: "cover", border: "1px solid #e2e8f0", flexShrink: 0 },
+    welcome:    { marginBottom: 0 },
     title:      { fontSize: 22, fontWeight: 700, color: "#1e293b", marginBottom: 4 },
     sub:        { color: "#64748b", fontSize: 14 },
     grid4:      { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 12, marginBottom: 24 },
@@ -137,9 +141,14 @@ export default function DashboardHome() {
     <div style={styles.container}>
 
       {/* Welcome */}
-      <div style={styles.welcome}>
-        <h2 style={styles.title}>Welcome back, {user.name}! 👋</h2>
-        <p style={styles.sub}>Taifa Asset Management Platform — {new Date().toLocaleDateString("en-GB", { weekday:"long", day:"2-digit", month:"long", year:"numeric" })}</p>
+      <div style={styles.welcomeRow}>
+        {org?.logoUrl && (
+          <img src={org.logoUrl} alt={org.name ? `${org.name} logo` : "Organization logo"} style={styles.welcomeLogo} />
+        )}
+        <div style={styles.welcome}>
+          <h2 style={styles.title}>Welcome back, {user.name}! 👋</h2>
+          <p style={styles.sub}>{org?.name || "Taifa Asset Management Platform"} — {new Date().toLocaleDateString("en-GB", { weekday:"long", day:"2-digit", month:"long", year:"numeric" })}</p>
+        </div>
       </div>
 
       {/* Asset Stats */}
