@@ -7,6 +7,17 @@ const { authenticate } = require('../middleware/authMiddleware');
 const { authorizeRoles } = require('../middleware/authMiddleware');
 const isAdmin = authorizeRoles('admin', 'super-admin');
 
+// ── Helper: fetch organization branding (logo + name) for PDF headers ──
+async function getOrgBranding(orgId) {
+  if (!orgId) return null;
+  try {
+    const doc = await db.collection('organizations').doc(orgId).get();
+    return doc.exists ? doc.data() : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 // ── Helper: fetch and filter tickets ──
 async function getTickets(query) {
   const { status, priority, category, search } = query;
@@ -177,6 +188,7 @@ router.get('/excel', authenticate, isAdmin, async (req, res, next) => {
 router.get('/pdf', authenticate, isAdmin, async (req, res, next) => {
   try {
     const tickets = await getTickets(req.query);
+    const org = await getOrgBranding(req.user.orgId);
 
     const doc = new PDFDocument({ margin: 40, size: 'A4', layout: 'landscape' });
 
@@ -187,11 +199,23 @@ router.get('/pdf', authenticate, isAdmin, async (req, res, next) => {
 
     // ── Header ──
     doc.rect(0, 0, doc.page.width, 70).fill('#6366f1');
+    let titleX = 40;
+    if (org?.logoUrl) {
+      try {
+        const base64Data = org.logoUrl.split(',')[1];
+        const imgBuffer = Buffer.from(base64Data, 'base64');
+        doc.roundedRect(40, 14, 42, 42, 6).fill('#ffffff');
+        doc.image(imgBuffer, 44, 18, { width: 34, height: 34 });
+        titleX = 92;
+      } catch (e) {
+        // fall back to text-only header
+      }
+    }
     doc.fillColor('#ffffff')
        .fontSize(22).font('Helvetica-Bold')
-       .text('ICT HelpDesk', 40, 18);
+       .text(org?.name || 'ICT HelpDesk', titleX, 18);
     doc.fontSize(11).font('Helvetica')
-       .text(`Ticket Export — ${tickets.length} tickets — ${fmtDate(Date.now())}`, 40, 46);
+       .text(`Ticket Export — ${tickets.length} tickets — ${fmtDate(Date.now())}`, titleX, 46);
 
     doc.moveDown(3);
 
