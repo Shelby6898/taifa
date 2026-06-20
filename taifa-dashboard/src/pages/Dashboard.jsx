@@ -1,6 +1,7 @@
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import DashboardHome from "./DashboardHome";
 import { useState, useEffect } from "react";
+import useOrg from "../hooks/useOrg";
 
 const navItems = [
   { path: "/dashboard",              icon: "📊", label: "Dashboard"    },
@@ -22,6 +23,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { org } = useOrg();
   const [unreadCount, setUnreadCount] = useState(0); // eslint-disable-line no-unused-vars
 
   useEffect(() => {
@@ -90,7 +92,11 @@ export default function Dashboard() {
       {/* Sidebar */}
       <div style={styles.sidebar}>
         <div style={styles.logo}>
-          <span style={{ fontSize: 22 }}>🏛️</span>
+          {org?.logoUrl ? (
+            <img src={org.logoUrl} alt="Organization logo" style={{ width: 26, height: 26, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />
+          ) : (
+            <span style={{ fontSize: 22 }}>🏛️</span>
+          )}
           <span style={styles.logoText}>Taifatech</span>
         </div>
         <nav style={styles.nav}>

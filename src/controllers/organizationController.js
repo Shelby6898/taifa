@@ -125,7 +125,7 @@ exports.updateMyOrganization = async (req, res) => {
     if (!req.user.orgId) {
       return res.status(404).json({ success: false, message: "No organization associated with this account" });
     }
-    const { name, locations, units, locationLabel, locationLabelPlural, unitLabel, unitLabelPlural } = req.body;
+    const { name, locations, units, locationLabel, locationLabelPlural, unitLabel, unitLabelPlural, logoUrl } = req.body;
     const updateData = { updatedAt: admin.firestore.Timestamp.now() };
     if (name) updateData.name = name;
     if (Array.isArray(locations)) updateData.locations = locations;
@@ -134,6 +134,16 @@ exports.updateMyOrganization = async (req, res) => {
     if (locationLabelPlural) updateData.locationLabelPlural = locationLabelPlural;
     if (unitLabel) updateData.unitLabel = unitLabel;
     if (unitLabelPlural) updateData.unitLabelPlural = unitLabelPlural;
+
+    // logoUrl is a base64 data URL (no Firebase Storage billing plan enabled).
+    // Allow explicit clearing via empty string; cap size to keep the
+    // Firestore document small and reads cheap.
+    if (logoUrl !== undefined) {
+      if (logoUrl.length > 800000) {
+        return res.status(400).json({ success: false, message: "Logo image is too large. Please use a smaller image." });
+      }
+      updateData.logoUrl = logoUrl;
+    }
 
     await db.collection("organizations").doc(req.user.orgId).update(updateData);
     cache.del(`org:${req.user.orgId}`);

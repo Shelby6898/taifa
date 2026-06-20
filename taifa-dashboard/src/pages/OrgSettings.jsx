@@ -1,6 +1,36 @@
 import { useState, useEffect } from "react";
 import { api } from "../api";
 
+// Resize an image client-side to a small square logo (no Firebase Storage
+// needed - the result is small enough to store directly in the org's
+// Firestore document as a base64 data URL).
+function resizeImageToDataUrl(file, maxSize = 200) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > height) {
+          if (width > maxSize) { height = Math.round(height * (maxSize / width)); width = maxSize; }
+        } else {
+          if (height > maxSize) { width = Math.round(width * (maxSize / height)); height = maxSize; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.onerror = () => reject(new Error("Could not read image"));
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(new Error("Could not read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function OrgSettings() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const [, setOrg] = useState(null);
@@ -10,8 +40,9 @@ export default function OrgSettings() {
   const [form, setForm] = useState({
     name: "", locationLabel: "", locationLabelPlural: "",
     unitLabel: "", unitLabelPlural: "",
-    locations: "", units: ""
+    locations: "", units: "", logoUrl: ""
   });
+  const [logoError, setLogoError] = useState("");
 
   useEffect(() => { load(); }, []);
 
@@ -27,7 +58,8 @@ export default function OrgSettings() {
         unitLabel: data.unitLabel || "Department",
         unitLabelPlural: data.unitLabelPlural || "Departments",
         locations: (data.locations || []).join(", "),
-        units: (data.units || []).join(", ")
+        units: (data.units || []).join(", "),
+        logoUrl: data.logoUrl || ""
       });
     } catch (err) {
       setMessage("❌ " + (err.response?.data?.message || "Failed to load organization"));
@@ -47,7 +79,8 @@ export default function OrgSettings() {
         unitLabel: form.unitLabel,
         unitLabelPlural: form.unitLabelPlural,
         locations: form.locations.split(",").map(s => s.trim()).filter(Boolean),
-        units: form.units.split(",").map(s => s.trim()).filter(Boolean)
+        units: form.units.split(",").map(s => s.trim()).filter(Boolean),
+        logoUrl: form.logoUrl
       });
       setMessage("✅ Organization settings updated successfully");
       // Clear org cache so useOrg hook refetches
@@ -57,6 +90,27 @@ export default function OrgSettings() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleLogoChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setLogoError("Please select an image file");
+      return;
+    }
+    setLogoError("");
+    try {
+      const dataUrl = await resizeImageToDataUrl(file);
+      setForm(prev => ({ ...prev, logoUrl: dataUrl }));
+    } catch {
+      setLogoError("Failed to process image. Try a different file.");
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setForm(prev => ({ ...prev, logoUrl: "" }));
+    setLogoError("");
   };
 
   if (!["admin", "super-admin"].includes(user.role)) {
@@ -74,6 +128,27 @@ export default function OrgSettings() {
           {message}
         </p>
       )}
+
+      <div style={styles.card}>
+        <h3 style={{ margin: "0 0 4px" }}>Branding</h3>
+        <p style={styles.hint}>Shown in the sidebar throughout the app. PNG or JPG, automatically resized.</p>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={styles.logoPreview}>
+            {form.logoUrl ? (
+              <img src={form.logoUrl} alt="Organization logo" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 8 }} />
+            ) : (
+              <span style={{ fontSize: 24 }}>🏢</span>
+            )}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <input type="file" accept="image/*" onChange={handleLogoChange} style={{ fontSize: 13 }} />
+            {form.logoUrl && (
+              <button onClick={handleRemoveLogo} style={styles.removeLogoBtn}>Remove logo</button>
+            )}
+            {logoError && <span style={{ fontSize: 12, color: "#dc2626" }}>{logoError}</span>}
+          </div>
+        </div>
+      </div>
 
       <div style={styles.card}>
         <h3 style={{ margin: "0 0 16px" }}>General</h3>
@@ -139,5 +214,7 @@ const styles = {
   input: { width: "100%", padding: "10px 12px", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 14, boxSizing: "border-box" },
   textarea: { width: "100%", padding: "10px 12px", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 14, boxSizing: "border-box", minHeight: 80, resize: "vertical" },
   count: { fontSize: 12, color: "#94a3b8", marginTop: 4, display: "block" },
-  btn: { background: "#1e293b", color: "#fff", border: "none", borderRadius: 8, padding: "12px 24px", fontWeight: 600, cursor: "pointer", fontSize: 14 }
+  btn: { background: "#1e293b", color: "#fff", border: "none", borderRadius: 8, padding: "12px 24px", fontWeight: 600, cursor: "pointer", fontSize: 14 },
+  logoPreview: { width: 64, height: 64, borderRadius: 8, border: "1px solid #e2e8f0", background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  removeLogoBtn: { background: "none", border: "1px solid #e2e8f0", borderRadius: 6, padding: "4px 10px", fontSize: 12, color: "#dc2626", cursor: "pointer", width: "fit-content" }
 };
