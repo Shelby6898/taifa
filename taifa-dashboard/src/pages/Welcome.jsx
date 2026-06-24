@@ -16,7 +16,6 @@ export default function Welcome() {
           registers with a secure, role-based digital system accessible from
           any device.
         </p>
-        <Link to="/login" style={styles.btn}>Sign In</Link>
       </header>
 
       <section style={styles.features}>
@@ -98,20 +97,10 @@ const styles = {
     color: "#94a3b8",
     fontSize: 15,
     lineHeight: 1.7,
-    margin: "0 0 36px",
+    margin: "0 0 8px",
     maxWidth: 580,
     marginLeft: "auto",
     marginRight: "auto",
-  },
-  btn: {
-    display: "inline-block",
-    padding: "14px 40px",
-    background: "#ffffff",
-    color: "#06122b",
-    borderRadius: 8,
-    fontSize: 16,
-    fontWeight: "bold",
-    textDecoration: "none",
   },
   features: {
     width: "100%",
