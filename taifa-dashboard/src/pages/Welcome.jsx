@@ -6,11 +6,15 @@ export default function Welcome() {
       <header style={styles.hero}>
         <h1 style={styles.logo}>TAIFATECH</h1>
         <p style={styles.tagline}>
-          Asset Management Built for County Governments
+          Multi-Tenant Asset Management Platform
         </p>
         <p style={styles.subtext}>
-          Track every asset from purchase to depreciation — with full audit
-          trails, transfer approvals, and reporting your departments can trust.
+          A cloud-based, multi-tenant asset management platform. Taifatech
+          helps organisations — county governments, universities, NGOs,
+          hospitals, and private companies — track, manage, and report on
+          physical assets across departments and locations, replacing manual
+          registers with a secure, role-based digital system accessible from
+          any device.
         </p>
         <Link to="/login" style={styles.btn}>Sign In</Link>
       </header>
@@ -45,9 +49,9 @@ export default function Welcome() {
 
         <div style={styles.featureCard}>
           <div style={styles.featureIcon}>🏢</div>
-          <h3 style={styles.featureTitle}>Built for Multiple Counties</h3>
+          <h3 style={styles.featureTitle}>Built for Many Organisations</h3>
           <p style={styles.featureText}>
-            Each organization gets its own branding, users, and data —
+            Each organisation gets its own branding, users, and data —
             fully isolated, on one secure platform.
           </p>
         </div>
@@ -93,9 +97,9 @@ const styles = {
   subtext: {
     color: "#94a3b8",
     fontSize: 15,
-    lineHeight: 1.6,
+    lineHeight: 1.7,
     margin: "0 0 36px",
-    maxWidth: 480,
+    maxWidth: 580,
     marginLeft: "auto",
     marginRight: "auto",
   },
