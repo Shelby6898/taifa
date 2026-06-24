@@ -3,9 +3,61 @@ import { Link } from "react-router-dom";
 export default function Welcome() {
   return (
     <div style={styles.page}>
-      <h1 style={styles.logo}>TAIFATECH</h1>
-      <p style={styles.tagline}>Multi-Tenant Asset Management Platform</p>
-      <Link to="/login" style={styles.btn}>Sign In</Link>
+      <header style={styles.hero}>
+        <h1 style={styles.logo}>TAIFATECH</h1>
+        <p style={styles.tagline}>
+          Asset Management Built for County Governments
+        </p>
+        <p style={styles.subtext}>
+          Track every asset from purchase to depreciation — with full audit
+          trails, transfer approvals, and reporting your departments can trust.
+        </p>
+        <Link to="/login" style={styles.btn}>Sign In</Link>
+      </header>
+
+      <section style={styles.features}>
+        <div style={styles.featureCard}>
+          <div style={styles.featureIcon}>🏛️</div>
+          <h3 style={styles.featureTitle}>Full Asset Lifecycle</h3>
+          <p style={styles.featureText}>
+            From procurement to depreciation, every asset is tracked by
+            ward, department, and value — with QR codes for quick lookup.
+          </p>
+        </div>
+
+        <div style={styles.featureCard}>
+          <div style={styles.featureIcon}>🔁</div>
+          <h3 style={styles.featureTitle}>Transfers & Audit Trail</h3>
+          <p style={styles.featureText}>
+            Asset transfers require approval and are logged automatically,
+            so there's always a clear record of who approved what, and when.
+          </p>
+        </div>
+
+        <div style={styles.featureCard}>
+          <div style={styles.featureIcon}>📊</div>
+          <h3 style={styles.featureTitle}>Reports That Hold Up</h3>
+          <p style={styles.featureText}>
+            Export branded PDF and Excel reports by ward, department, or
+            asset type — ready to share with leadership or auditors.
+          </p>
+        </div>
+
+        <div style={styles.featureCard}>
+          <div style={styles.featureIcon}>🏢</div>
+          <h3 style={styles.featureTitle}>Built for Multiple Counties</h3>
+          <p style={styles.featureText}>
+            Each organization gets its own branding, users, and data —
+            fully isolated, on one secure platform.
+          </p>
+        </div>
+      </section>
+
+      <footer style={styles.footer}>
+        <p style={styles.footerText}>
+          Already have an account? <Link to="/login" style={styles.footerLink}>Sign in here</Link>
+        </p>
+      </footer>
     </div>
   );
 }
@@ -17,21 +69,35 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
-    textAlign: "center"
+    padding: "16px",
+  },
+  hero: {
+    width: "100%",
+    maxWidth: 720,
+    textAlign: "center",
+    padding: "64px 16px 48px",
   },
   logo: {
     color: "#ffffff",
     fontSize: 48,
     fontWeight: "bold",
     margin: 0,
-    letterSpacing: 1
+    letterSpacing: 1,
   },
   tagline: {
+    color: "#ffffff",
+    fontSize: 20,
+    fontWeight: 600,
+    margin: "16px 0 12px",
+  },
+  subtext: {
     color: "#94a3b8",
-    fontSize: 16,
-    margin: "12px 0 36px"
+    fontSize: 15,
+    lineHeight: 1.6,
+    margin: "0 0 36px",
+    maxWidth: 480,
+    marginLeft: "auto",
+    marginRight: "auto",
   },
   btn: {
     display: "inline-block",
@@ -41,6 +107,51 @@ const styles = {
     borderRadius: 8,
     fontSize: 16,
     fontWeight: "bold",
-    textDecoration: "none"
-  }
+    textDecoration: "none",
+  },
+  features: {
+    width: "100%",
+    maxWidth: 960,
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: 20,
+    padding: "24px 0 56px",
+  },
+  featureCard: {
+    background: "#0d1b3d",
+    border: "1px solid #1e2f5c",
+    borderRadius: 12,
+    padding: "24px 20px",
+    textAlign: "left",
+  },
+  featureIcon: {
+    fontSize: 28,
+    marginBottom: 12,
+  },
+  featureTitle: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: 700,
+    margin: "0 0 8px",
+  },
+  featureText: {
+    color: "#94a3b8",
+    fontSize: 14,
+    lineHeight: 1.6,
+    margin: 0,
+  },
+  footer: {
+    padding: "24px 16px 48px",
+    textAlign: "center",
+  },
+  footerText: {
+    color: "#64748b",
+    fontSize: 14,
+    margin: 0,
+  },
+  footerLink: {
+    color: "#ffffff",
+    fontWeight: 600,
+    textDecoration: "underline",
+  },
 };
