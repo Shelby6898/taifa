@@ -263,12 +263,9 @@ exports.restoreAsset = async (req, res) => {
     if (!sameOrg(oldData, req)) {
       return res.status(404).json({ success: false, message: "Asset not found" });
     }
-
-    if (oldData.status !== "deleted") return res.status(400).json({ success: false, message: "Asset is not deleted" });
-
-      previousStatus: null,
-      statusReason: null, deletedAt: null, updatedAt: admin.firestore.Timestamp.now() };
-    await docRef.update(updateData);
+    if (oldData.status === "DISPOSED") return res.status(400).json({ success: false, message: "Asset is already disposed and cannot be restored" });
+    const updateData = { status: "UNASSIGNED",
+      previousStatus: oldData.status, statusReason: null, updatedAt: admin.firestore.Timestamp.now() };
     await db.collection("asset_audit").add({
       assetId: id, action: "restored",
       changedBy: req.user.userId || "system",
