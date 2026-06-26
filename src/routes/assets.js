@@ -10,6 +10,7 @@ const {
   bulkImportAssets, bulkImportTemplate
 } = require("../controllers/assetController");
 const { authenticate, authorizeRoles, authorizeWrite } = require("../middleware/authMiddleware");
+const { assignCustodian, releaseCustodian, getCustodyLog } = require("../controllers/custodyController");
 
 // Apply auth to all routes
 router.use(authenticate);
@@ -32,5 +33,8 @@ router.put("/:id", authorizeWrite("admin", "manager"), updateAsset);
 router.post("/:id/transfer", authorizeWrite("admin", "manager"), transferAsset);
 router.delete("/:id", authorizeWrite("admin"), deleteAsset);
 router.patch("/:id/restore", authorizeWrite("admin"), restoreAsset);
+router.post("/:id/custodian", authorizeWrite("admin", "manager"), assignCustodian);
+router.delete("/:id/custodian", authorizeWrite("admin"), releaseCustodian);
+router.get("/:id/custody-log", getCustodyLog);
 
 module.exports = router;
