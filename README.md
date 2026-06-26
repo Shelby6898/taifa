@@ -26,6 +26,9 @@ A cloud-based, multi-tenant asset management platform. Taifatech helps organisat
 | 🕵️ Audit Trails | Every asset, ticket, and user change logged with who/what/when |
 | 💾 Automated Backups | Daily scheduled backup of all organisations' data |
 | 🛡️ Super Admin Oversight | Platform-wide read-only visibility; cannot write to tenant data |
+| 🔑 Forgot / Reset Password | Secure email-based password reset with SHA-256 tokens, 30-min expiry, single-use, rate-limited (3 req/15min) |
+| 🖼️ Organisation Logo | Upload a branded logo per org; appears in sidebar, dashboard, and all exported PDFs |
+| 🌐 Landing Page | Public welcome page at taifatech.org with Sign In entry point |
 
 ---
 
@@ -33,7 +36,7 @@ A cloud-based, multi-tenant asset management platform. Taifatech helps organisat
 
 ### Frontend
 - **React.js** — User interface
-- **React Router** — Navigation
+- **React Router** — Navigation (entry point: `App.js`)
 - **Recharts** — Charts and graphs
 - **qrcode.react** — QR code generation
 - **jsPDF** — PDF export
@@ -46,12 +49,16 @@ A cloud-based, multi-tenant asset management platform. Taifatech helps organisat
 - **Firebase Authentication (Admin SDK)** — Identity layer behind login
 - **JWT** — Session tokens (role, department, orgId)
 - **bcryptjs** — Password hashing
+- **PDFKit** — Server-side PDF generation (audit logs, reports, ticket exports)
+- **Resend** — Transactional email (password reset, notifications)
+- **crypto (Node built-in)** — SHA-256 token hashing for password reset
 
 ### Infrastructure
-- **Render** — Hosting
+- **Render** — Hosting (free tier, WEB_CONCURRENCY=1)
 - **Custom domain** — taifatech.org with managed SSL
 - **Firestore Security Rules** — Deny-all for direct client access (see [Security](#-security))
 - **cron-job.org** — Triggers the daily automated backup endpoint
+- **In-Memory Cache** — Server-side caching layer (single-process; Redis upgrade path documented)
 
 ---
 
@@ -61,6 +68,7 @@ Taifatech serves multiple independent organisations from a single deployment:
 
 - Every organisation has its own users, assets, departments/units, and locations — completely isolated from other organisations at the data layer (every record carries an `orgId`, and every query/write is scoped to it).
 - Each organisation configures its own terminology. A county might use "Ward" and "Department"; a university might use "Campus" and "Faculty". Configurable from **Org Settings**.
+- Each organisation can upload a **branded logo** that appears across the sidebar, dashboard welcome screen, and all exported PDFs — giving each tenant a personalised experience within the shared platform.
 - New organisations are onboarded by a **Super Admin** via the **Organizations** page, which creates the org and its first admin account in one step.
 - The Super Admin role is intentionally **read-only** across tenant data — it can view any organisation's records for support purposes but cannot create, edit, or delete them. Only that organisation's own Admins can do that.
 
@@ -77,15 +85,18 @@ taifa/
 ├── scripts/                   # One-off migration scripts
 ├── src/
 │   ├── config/                # Firebase Admin SDK init
-│   ├── controllers/           # Business logic (assets, transfers, orgs, etc.)
+│   ├── controllers/           # Business logic (assets, transfers, orgs, auth, etc.)
 │   ├── middleware/             # authenticate, authorizeRoles, authorizeWrite
 │   └── routes/                # Express route definitions
 └── taifa-dashboard/           # React frontend
     └── src/
-        ├── pages/             # Dashboard, Assets, Transfers, Org Settings, etc.
+        ├── pages/             # Dashboard, Assets, Transfers, Org Settings,
+        │                      # ForgotPassword, ResetPassword, Landing, etc.
         ├── hooks/             # useOrg, useInactivityLogout
-        └── components/        # Shared UI (ProtectedRoute, etc.)
+        └── components/        # Shared UI (ProtectedRoute, Sidebar, etc.)
 ```
+
+> **Note:** `App.js` is the true webpack router entry point. `App.jsx` (a former duplicate) has been removed to prevent silent routing failures.
 
 ---
 
@@ -121,6 +132,7 @@ PORT=4000
 JWT_SECRET=your_jwt_secret_key
 BACKUP_SECRET=your_backup_secret_key
 BASE_URL=http://localhost:4000
+RESEND_API_KEY=your_resend_api_key
 ```
 
 Add your `serviceAccountKey.json` from the Firebase Console (Project Settings → Service Accounts).
@@ -174,9 +186,12 @@ curl -X POST http://localhost:4000/api/auth/register \
 | POST | `/api/auth/login` | Login |
 | POST | `/api/auth/register` | Register user *(admin/super-admin only)* |
 | GET | `/api/auth/profile` | Get profile |
+| POST | `/api/auth/forgot-password` | Request a password reset email *(rate-limited: 3 req/15min)* |
+| POST | `/api/auth/reset-password` | Submit new password using a valid reset token |
 | GET | `/api/organizations` | List organisations *(super-admin only)* |
 | POST | `/api/organizations` | Create organisation *(super-admin only)* |
 | GET / PUT | `/api/organizations/mine` | View/update own organisation settings |
+| POST | `/api/organizations/mine/logo` | Upload organisation logo *(base64, max 800KB)* |
 | GET | `/api/assets` | List assets *(org-scoped)* |
 | POST | `/api/assets` | Create asset |
 | POST | `/api/assets/bulk-import` | Bulk import assets from Excel |
@@ -199,7 +214,7 @@ curl -X POST http://localhost:4000/api/auth/register \
 |------|-------|--------|-----------|-------------|---------|-------|----------------|
 | Super Admin | Platform-wide | 👁️ read-only, all orgs | 👁️ read-only | 👁️ read-only | 👁️ read-only | 👁️ read-only | ✅ full control |
 | Admin | Own organisation | ✅ all depts | ✅ approve/deny | ✅ all depts | ✅ | ✅ | ✅ own org settings |
-| Manager | Own department | ✅ own dept | ✅ request | ✅ own dept | ✅ own dept | ❌ | ❌ |
+| Manager | Own department | ✅ own dept | ✅ request | ✅ own dept |  ✅ own dept | ❌ | ❌ |
 | Viewer | Assigned records | 👁️ assigned only | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 ---
@@ -222,12 +237,21 @@ curl -X POST http://localhost:4000/api/auth/register \
 - **Tenant isolation** — every record is tagged with an `orgId`; all reads/writes are scoped to the requesting user's organisation.
 - **Authentication** — JWT-based sessions, bcrypt password hashing (10 rounds), 15-minute inactivity auto-logout.
 - **Authorisation** — role and department checks enforced server-side on every route, via `authorizeRoles` (read access) and `authorizeWrite` (excludes Super Admin from all write operations on tenant data).
+- **Password reset hardening** — reset tokens are SHA-256 hashed before storage, expire after 30 minutes, are single-use, and always return generic responses to prevent account enumeration. A dedicated rate limiter (3 requests per 15 minutes) guards the forgot-password endpoint.
 - **Firestore Security Rules** — `firestore.rules` denies all direct client access (`allow read, write: if false`). The backend's Firebase Admin SDK bypasses this by design; the rule exists to block any direct use of the public client config from outside the API.
 - **Audit trails** — every asset, ticket, and user action is logged with who made the change, when, and (for assets) the before/after state.
 - **Soft delete** — assets are never permanently lost; deleted assets can be restored.
 - **Automated backups** — a scheduled job exports all collections daily to a timestamped Firestore backup record.
 
 See the project's documentation set (Data Security & Compliance document) for the full write-up.
+
+---
+
+## ⚡ Performance & Scaling
+
+- **Current capacity** — load tested at 100 concurrent requests; comfortably supports ~50–70 simultaneous active users on the free tier.
+- **Bottleneck** — bcrypt CPU cost under high concurrent login load; event loop saturation at extreme concurrency.
+- **Scaling path** — replace in-memory cache with Redis, increase `WEB_CONCURRENCY` above 1 on a paid Render tier, and move bcrypt to a worker thread pool.
 
 ---
 
