@@ -1,18 +1,9 @@
 const { db } = require("../config/firebase");
 
-// Depreciation rates per year by asset type (%)
-const DEPRECIATION_RATES = {
-  "ICT Equipment": 33.33,  // 3 year life
-  "Vehicle": 25,            // 4 year life
-  "Furniture": 10,          // 10 year life
-  "Machinery": 15,          // ~7 year life
-  "Building": 2.5,          // 40 year life
-  "Land": 0,                // Land doesn't depreciate
-  "Other": 20               // 5 year life
-};
 
 function calcDepreciation(asset) {
-  const rate = DEPRECIATION_RATES[asset.type] || 20;
+  const rate = asset.appreciationRate || asset.categoryRate || 20;
+  const appreciationType = asset.appreciationType || "DEPRECIATION";
   const originalValue = asset.value || 0;
 
   // Get acquisition date
@@ -29,10 +20,15 @@ function calcDepreciation(asset) {
   const ageYears = Math.max(0, (now - acquisitionDate) / (1000 * 60 * 60 * 24 * 365.25));
   const ageMonths = Math.floor(ageYears * 12);
 
-  // Straight-line depreciation
-  const annualDepreciation = (originalValue * rate) / 100;
-  const totalDepreciated = Math.min(originalValue, annualDepreciation * ageYears);
-  const currentValue = Math.max(0, originalValue - totalDepreciated);
+  // Straight-line depreciation or appreciation
+  const annualChange = (originalValue * rate) / 100;
+  const annualDepreciation = annualChange;
+  const totalDepreciated = appreciationType === "APPRECIATION"
+    ? 0
+    : Math.min(originalValue, annualChange * ageYears);
+  const currentValue = appreciationType === "APPRECIATION"
+    ? Math.round(originalValue + annualChange * ageYears)
+    : Math.max(0, originalValue - totalDepreciated);
   const depreciationPercent = originalValue > 0 ? (totalDepreciated / originalValue) * 100 : 0;
 
   // Useful life remaining
@@ -88,9 +84,25 @@ exports.getDepreciationReport = async (req, res) => {
     }
 
     // Only active assets
-    assets = assets.filter(a => a.status !== "deleted");
+    assets = assets.filter(a => a.status !== "DISPOSED");
 
-    const report = assets.map(calcDepreciation);
+    // Enrich with category rates
+    const catCache = {};
+    const enriched = await Promise.all(assets.map(async a => {
+      if (a.categoryId) {
+        if (!catCache[a.categoryId]) {
+          const catDoc = await db.collection("asset_categories").doc(a.categoryId).get();
+          if (catDoc.exists) catCache[a.categoryId] = catDoc.data();
+        }
+        const cat = catCache[a.categoryId];
+        if (cat) {
+          a.appreciationRate = cat.appreciationRate;
+          a.appreciationType = cat.appreciationType;
+        }
+      }
+      return a;
+    }));
+    const report = enriched.map(calcDepreciation);
 
     // Summary
     const summary = {
