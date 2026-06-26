@@ -23,7 +23,7 @@ export default function Assets() {
   const [importResult, setImportResult] = useState(null);
   const [form, setForm] = useState({
     name: "", type: "", ward: "", department: "",
-    value: "", assignedTo: "", location: "", acquisitionDate: ""
+    value: "", custodian: "", location: "", acquisitionDate: ""
   });
 
   const user      = JSON.parse(localStorage.getItem("user") || "{}");
@@ -111,7 +111,7 @@ export default function Assets() {
   const resetForm = () => setForm({
     name: "", type: "", ward: "",
     department: isManager ? user.department : "",
-    value: "", assignedTo: "", location: "", acquisitionDate: ""
+    value: "", custodian: "", location: "", acquisitionDate: ""
   });
 
   const handleCreate = async () => {
@@ -292,10 +292,10 @@ export default function Assets() {
               </select>
             )}
             <input style={styles.input} placeholder="Value (KES)" type="number" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} />
-            <input style={styles.input} placeholder="Assigned To" value={form.assignedTo}
+            <input style={styles.input} placeholder="Custodian" value={form.custodian}
               onChange={async e => {
                 const name = e.target.value;
-                setForm(f => ({ ...f, assignedTo: name }));
+                setForm(f => ({ ...f, custodian: name }));
               }}
               onBlur={async e => {
                 const name = e.target.value.trim();
@@ -325,8 +325,11 @@ export default function Assets() {
         <input style={{ ...styles.input, flex: 1, minWidth: 180 }} placeholder="🔍 Search by name, code, ward..." value={search} onChange={e => setSearch(e.target.value)} />
         <select style={{ ...styles.input, minWidth: 120 }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
           <option value="all">All Status</option>
-          <option value="active">Active</option>
-          <option value="deleted">Deleted</option>
+          <option value="ASSIGNED">Assigned</option>
+          <option value="UNASSIGNED">Unassigned</option>
+          <option value="NEW">New</option>
+          <option value="MAINTENANCE">Maintenance</option>
+          <option value="DISPOSED">Disposed</option>
         </select>
       </div>
 
@@ -334,8 +337,8 @@ export default function Assets() {
       <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
         {[
           { label: "Total",       value: filtered.length,                                                              color: "#06122b" },
-          { label: "Active",      value: filtered.filter(a => a.status === "active").length,                           color: "#16a34a" },
-          { label: "Deleted",     value: filtered.filter(a => a.status === "deleted").length,                          color: "#dc2626" },
+          { label: "Assigned", value: filtered.filter(a => a.status === "ASSIGNED").length,                           color: "#16a34a" },
+          { label: "Disposed", value: filtered.filter(a => a.status === "DISPOSED").length, color: "#dc2626" },
           { label: "Total Value", value: `KES ${filtered.reduce((s, a) => s + (a.value || 0), 0).toLocaleString()}`,   color: "#2563eb" }
         ].map(s => (
           <div key={s.label} style={{ background: s.color, color: "white", borderRadius: 8, padding: "10px 16px", fontSize: 13 }}>
@@ -352,14 +355,14 @@ export default function Assets() {
         ) : filtered.map(asset => (
           <div key={asset.assetId} style={{
             ...styles.card,
-            opacity: asset.status === "deleted" ? 0.6 : 1,
-            borderLeft: `4px solid ${asset.status === "deleted" ? "#dc2626" : "#16a34a"}`
+            opacity: asset.status === "DISPOSED" ? 0.6 : 1,
+            borderLeft: `4px solid ${asset.status === "DISPOSED" ? "#dc2626" : asset.status === "ASSIGNED" ? "#16a34a" : asset.status === "MAINTENANCE" ? "#f59e0b" : "#6b7280"}`
           }}>
             <div style={{ flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <strong>{asset.name}</strong>
                 <span style={{ fontSize: 12, color: "#6b7280" }}>{asset.assetCode}</span>
-                <span style={{ ...styles.badge, background: asset.status === "deleted" ? "#dc2626" : "#16a34a" }}>
+                <span style={{ ...styles.badge, background: asset.status === "DISPOSED" ? "#dc2626" : asset.status === "ASSIGNED" ? "#16a34a" : asset.status === "MAINTENANCE" ? "#f59e0b" : "#6b7280" }}>
                   {asset.status}
                 </span>
               </div>
@@ -369,14 +372,14 @@ export default function Assets() {
                 <span>🏢 {asset.department}</span>
                 <span>💰 KES {(asset.value || 0).toLocaleString()}</span>
               </div>
-              {asset.assignedTo && <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>👤 {asset.assignedTo}</div>}
+              {asset.custodian && <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>👤 {asset.custodian}</div>}
             </div>
             <div style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
               <button style={styles.qrBtn} onClick={() => setQrAsset(asset)}>QR</button>
-              {canEdit && !canView && asset.status !== "deleted" && (
+              {canEdit && !canView && asset.status !== "DISPOSED" && (
                 <button style={styles.editBtn} onClick={() => { setEditAsset({ ...asset }); setMessage(""); }}>Edit</button>
               )}
-              {isAdmin && (asset.status === "deleted"
+              {isAdmin && (asset.status === "DISPOSED"
                 ? <button style={styles.restoreBtn} onClick={() => handleRestore(asset)}>Restore</button>
                 : <button style={styles.deleteBtn} onClick={() => handleDelete(asset)}>Delete</button>
               )}
@@ -412,7 +415,7 @@ export default function Assets() {
                 </select>
               )}
               <input style={styles.input} placeholder="Value (KES)" type="number" value={editAsset.value} onChange={e => setEditAsset({ ...editAsset, value: Number(e.target.value) })} />
-              <input style={styles.input} placeholder="Assigned To" value={editAsset.assignedTo || ""} onChange={e => setEditAsset({ ...editAsset, assignedTo: e.target.value })} />
+              <input style={styles.input} placeholder="Custodian" value={editAsset.custodian || ""} onChange={e => setEditAsset({ ...editAsset, custodian: e.target.value })} />
               <input style={styles.input} placeholder="Location" value={editAsset.location || ""} onChange={e => setEditAsset({ ...editAsset, location: e.target.value })} />
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
@@ -442,7 +445,7 @@ export default function Assets() {
               <span>🏷️ {qrAsset.type}</span>
               <span>🏢 {qrAsset.department} • 📍 {qrAsset.ward}</span>
               <span>💰 KES {(qrAsset.value || 0).toLocaleString()}</span>
-              {qrAsset.assignedTo && <span>👤 {qrAsset.assignedTo}</span>}
+              {qrAsset.custodian && <span>👤 {qrAsset.custodian}</span>}
               {qrAsset.location && <span>📌 {qrAsset.location}</span>}
             </div>
             <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 8 }}>

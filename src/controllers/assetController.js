@@ -11,14 +11,14 @@ exports.getAssets = async (req, res) => {
     let query = db.collection("assets");
 
     if (req.query.includeDeleted !== "true") {
-      query = query.where("status", "!=", "deleted");
+      query = query.where("status", "!=", "DISPOSED");
     }
 
     // Role-based filtering
     if (req.user && req.user.role === "manager" && req.user.department) {
       query = query.where("department", "==", req.user.department);
     } else if (req.user && req.user.role === "viewer") {
-      query = query.where("assignedTo", "==", req.user.name);
+      query = query.where("custodian", "==", req.user.name);
     }
 
     if (req.query.ward) query = query.where("ward", "==", req.query.ward);
@@ -70,11 +70,11 @@ exports.createAsset = async (req, res) => {
       return res.status(403).json({ success: false, message: "You can only create assets in your department" });
     }
 
-    // If assignedTo is set, auto-set department to match that user's department
+    // If custodian is set, auto-set department to match that user's department
     let finalDepartment = department;
-    let assignedTo = req.body.assignedTo || null;
-    if (assignedTo) {
-      const userSnap = await db.collection("users").where("name", "==", assignedTo).get();
+    let custodian = req.body.custodian || null;
+    if (custodian) {
+      const userSnap = await db.collection("users").where("name", "==", custodian).get();
       if (!userSnap.empty) {
         const assignedUser = userSnap.docs[0].data();
         if (assignedUser.department) {
@@ -87,8 +87,10 @@ exports.createAsset = async (req, res) => {
       orgId: req.user.orgId,
       assetCode: generateAssetCode(req.body.ward),
       type, name, ward, department: finalDepartment,
-      assignedTo,
-      status: "active",
+      status: req.body.custodian ? "ASSIGNED" : "UNASSIGNED",
+      previousStatus: null,
+      statusReason: null,
+      custodian: req.body.custodian || null,
       value: req.body.value || 0,
       location: req.body.location || null,
       photos: req.body.photos || [],
@@ -221,7 +223,7 @@ exports.deleteAsset = async (req, res) => {
       return res.status(404).json({ success: false, message: "Asset not found" });
     }
 
-    const updateData = { status: "deleted", deletedAt: admin.firestore.Timestamp.now(), updatedAt: admin.firestore.Timestamp.now() };
+    const updateData = { status: "DISPOSED", disposedAt: admin.firestore.Timestamp.now(), updatedAt: admin.firestore.Timestamp.now() };
     await docRef.update(updateData);
     await db.collection("asset_audit").add({
       assetId: id, action: "deleted",
@@ -264,7 +266,8 @@ exports.restoreAsset = async (req, res) => {
 
     if (oldData.status !== "deleted") return res.status(400).json({ success: false, message: "Asset is not deleted" });
 
-    const updateData = { status: "active", deletedAt: null, updatedAt: admin.firestore.Timestamp.now() };
+      previousStatus: null,
+      statusReason: null, deletedAt: null, updatedAt: admin.firestore.Timestamp.now() };
     await docRef.update(updateData);
     await db.collection("asset_audit").add({
       assetId: id, action: "restored",
@@ -422,7 +425,7 @@ exports.bulkImportTemplate = async (req, res) => {
       { header: "department", key: "department", width: 20 },
       { header: "value", key: "value", width: 15 },
       { header: "location", key: "location", width: 25 },
-      { header: "assignedTo", key: "assignedTo", width: 25 },
+      { header: "custodian", key: "custodian", width: 25 },
       { header: "acquisitionDate", key: "acquisitionDate", width: 18 }
     ];
 
@@ -435,7 +438,7 @@ exports.bulkImportTemplate = async (req, res) => {
       department: "ICT",
       value: 65000,
       location: "ICT Office, Room 4",
-      assignedTo: "",
+      custodian: "",
       acquisitionDate: "2025-01-15"
     });
 
@@ -519,8 +522,10 @@ exports.bulkImportAssets = async (req, res) => {
         name: String(name).trim(),
         ward: String(ward).trim(),
         department: String(department).trim(),
-        assignedTo: record.assignedTo ? String(record.assignedTo).trim() : null,
-        status: "active",
+        custodian: record.custodian ? String(record.custodian).trim() : null,
+        status: "UNASSIGNED",
+      previousStatus: null,
+      statusReason: null,
         value: Number(record.value) || 0,
         location: record.location ? String(record.location).trim() : null,
         photos: [],
