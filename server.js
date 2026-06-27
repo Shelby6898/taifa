@@ -133,6 +133,7 @@ app.use("/api/notifications", require("./src/routes/notifications"));
 app.use("/api/depreciation", require("./src/routes/depreciation"));
 app.use("/api/categories", require("./src/routes/categories"));
 app.use("/api/disposals", require("./src/routes/disposals"));
+app.use("/api/ifmis", require("./src/routes/ifmis"));
 
 app.use(
   "/api/maintenance",
