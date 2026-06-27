@@ -48,8 +48,14 @@ exports.register = async (req, res) => {
       department: department || null,
       orgId: req.user.role === "super-admin" ? (req.body.orgId || null) : req.user.orgId,
 
-      createdAt:
-        admin.firestore.Timestamp.now()
+      employeeNumber: req.body.employeeNumber || null,
+      jobTitle: req.body.jobTitle || null,
+      phone: req.body.phone || null,
+      profileImage: req.body.profileImage || null,
+      userStatus: "active",
+      loginAttempts: 0,
+      lastLoginAt: null,
+      createdAt: admin.firestore.Timestamp.now()
     };
 
     const docRef =
@@ -99,28 +105,43 @@ exports.login = async (req, res) => {
       .get();
 
     if (snapshot.empty) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid credentials"
-      });
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
 
     const userDoc = snapshot.docs[0];
-
     const user = userDoc.data();
 
-    const isMatch =
-      await bcrypt.compare(
-        password,
-        user.passwordHash
-      );
+    // Check user status
+    if (user.userStatus === "disabled") {
+      return res.status(403).json({ success: false, message: "Your account has been disabled. Contact your administrator." });
+    }
+    if (user.userStatus === "blocked") {
+      return res.status(403).json({ success: false, message: "Your account is blocked due to too many failed login attempts. Contact your administrator." });
+    }
+    if (user.userStatus === "inactive") {
+      return res.status(403).json({ success: false, message: "Your account is inactive. Contact your administrator." });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
 
     if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid credentials"
+      // Increment login attempts
+      const attempts = (user.loginAttempts || 0) + 1;
+      const newStatus = attempts >= 5 ? "blocked" : user.userStatus;
+      await db.collection("users").doc(userDoc.id).update({
+        loginAttempts: attempts,
+        userStatus: newStatus,
+        updatedAt: admin.firestore.Timestamp.now()
       });
+      return res.status(401).json({ success: false, message: attempts >= 5 ? "Account blocked due to too many failed attempts. Contact your administrator." : "Invalid credentials" });
     }
+
+    // Reset login attempts on success
+    await db.collection("users").doc(userDoc.id).update({
+      loginAttempts: 0,
+      lastLoginAt: admin.firestore.Timestamp.now(),
+      updatedAt: admin.firestore.Timestamp.now()
+    });
 
     const token = jwt.sign(
       {
@@ -170,6 +191,12 @@ exports.getUsers = async (req, res) => {
       role: doc.data().role,
       department: doc.data().department,
       orgId: doc.data().orgId || null,
+      employeeNumber: doc.data().employeeNumber || null,
+      jobTitle: doc.data().jobTitle || null,
+      phone: doc.data().phone || null,
+      userStatus: doc.data().userStatus || "active",
+      loginAttempts: doc.data().loginAttempts || 0,
+      lastLoginAt: doc.data().lastLoginAt?.toDate().toISOString() || null,
       createdAt: doc.data().createdAt?.toDate().toISOString()
     }));
 
@@ -273,6 +300,12 @@ exports.getProfile = async (req, res) => {
         role: data.role,
         department: data.department,
         orgId: data.orgId || null,
+        employeeNumber: data.employeeNumber || null,
+        jobTitle: data.jobTitle || null,
+        phone: data.phone || null,
+        profileImage: data.profileImage || null,
+        userStatus: data.userStatus || "active",
+        lastLoginAt: data.lastLoginAt?.toDate().toISOString() || null,
         createdAt: data.createdAt?.toDate().toISOString()
       }
     });
@@ -452,6 +485,91 @@ exports.resetPassword = async (req, res) => {
     res.status(200).json({ success: true, message: "Password reset successfully. You can now log in." });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/*
+|--------------------------------------------------------------------------
+| UPDATE USER STATUS
+|--------------------------------------------------------------------------
+*/
+exports.updateUserStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userStatus } = req.body;
+
+    const validStatuses = ["active", "inactive", "disabled", "blocked"];
+    if (!userStatus || !validStatuses.includes(userStatus)) {
+      return res.status(400).json({ success: false, message: "userStatus must be one of: active, inactive, disabled, blocked" });
+    }
+
+    const docRef = db.collection("users").doc(id);
+    const doc = await docRef.get();
+    if (!doc.exists) return res.status(404).json({ success: false, message: "User not found" });
+
+    const userData = doc.data();
+    if (req.user.role !== "super-admin" && userData.orgId !== req.user.orgId) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Prevent admin from disabling themselves
+    if (id === req.user.userId && userStatus !== "active") {
+      return res.status(400).json({ success: false, message: "You cannot change your own status" });
+    }
+
+    const now = admin.firestore.Timestamp.now();
+    await docRef.update({
+      userStatus,
+      loginAttempts: userStatus === "active" ? 0 : userData.loginAttempts,
+      updatedAt: now
+    });
+
+    await db.collection("user_audit").add({
+      userId: id,
+      orgId: userData.orgId,
+      action: "status_changed",
+      changedBy: req.user.userId || "system",
+      note: `Status changed from ${userData.userStatus || "active"} to ${userStatus}`,
+      oldData: { userStatus: userData.userStatus || "active" },
+      newData: { userStatus },
+      timestamp: now
+    });
+
+    res.json({ success: true, message: `User status updated to ${userStatus}` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/*
+|--------------------------------------------------------------------------
+| UPDATE PROFILE (expanded — phone, jobTitle, employeeNumber, profileImage)
+|--------------------------------------------------------------------------
+*/
+exports.updateProfileExpanded = async (req, res) => {
+  try {
+    const { name, email, phone, jobTitle, employeeNumber, profileImage } = req.body;
+    const docRef = db.collection("users").doc(req.user.userId);
+    const doc = await docRef.get();
+    if (!doc.exists) return res.status(404).json({ success: false, message: "User not found" });
+
+    const updateData = { updatedAt: admin.firestore.Timestamp.now() };
+    if (name) updateData.name = name;
+    if (phone) updateData.phone = phone;
+    if (jobTitle) updateData.jobTitle = jobTitle;
+    if (employeeNumber) updateData.employeeNumber = employeeNumber;
+    if (profileImage) updateData.profileImage = profileImage;
+    if (email) {
+      const existing = await db.collection("users").where("email", "==", email).get();
+      const taken = existing.docs.find(d => d.id !== req.user.userId);
+      if (taken) return res.status(400).json({ success: false, message: "Email already in use" });
+      updateData.email = email;
+    }
+
+    await docRef.update(updateData);
+    res.json({ success: true, message: "Profile updated successfully" });
+  } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };

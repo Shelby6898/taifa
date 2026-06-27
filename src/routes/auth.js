@@ -4,7 +4,7 @@ const {
   register, login,
   getUsers, updateUser, deleteUser,
   getProfile, updateProfile, changePassword,
-  forgotPassword, resetPassword
+  forgotPassword, resetPassword, updateUserStatus, updateProfileExpanded
 } = require("../controllers/auth/authController");
 const { authenticate, authorizeRoles, authorizeWrite } = require("../middleware/authMiddleware");
 
@@ -18,5 +18,7 @@ router.delete("/users/:id", authenticate, authorizeWrite("admin"), deleteUser);
 router.get("/profile", authenticate, getProfile);
 router.put("/profile", authenticate, updateProfile);
 router.put("/profile/password", authenticate, changePassword);
+router.put("/profile/expanded", authenticate, updateProfileExpanded);
+router.patch("/users/:id/status", authenticate, authorizeWrite("admin"), updateUserStatus);
 
 module.exports = router;
