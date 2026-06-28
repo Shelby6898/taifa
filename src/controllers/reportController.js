@@ -16,7 +16,7 @@ exports.getSummaryReport = async (req, res) => {
     if (req.user.role === "manager" && req.user.department) {
       query = query.where("department", "==", req.user.department);
     } else if (req.user.role === "viewer") {
-      query = query.where("assignedTo", "==", req.user.name);
+      query = query.where("custodian", "==", req.user.name);
     }
     const snapshot = await query.get();
     let assets = snapshot.docs.map(doc => ({ assetId: doc.id, ...doc.data() }));
@@ -26,9 +26,14 @@ exports.getSummaryReport = async (req, res) => {
     }
 
     const total = assets.length;
-    const active = assets.filter(a => a.status === "active").length;
-    const deleted = assets.filter(a => a.status === "deleted").length;
-    const maintenance = assets.filter(a => a.status === "maintenance").length;
+    const assigned = assets.filter(a => a.status === "ASSIGNED").length;
+    const unassigned = assets.filter(a => a.status === "UNASSIGNED").length;
+    const newAssets = assets.filter(a => a.status === "NEW").length;
+    const disposed = assets.filter(a => a.status === "DISPOSED").length;
+    const maintenance = assets.filter(a => a.status === "MAINTENANCE").length;
+    const checkedOut = assets.filter(a => a.checkedOut === true).length;
+    const flaggedMissing = assets.filter(a => a.flaggedMissing === true).length;
+    const totalCurrentValue = assets.reduce((sum, a) => sum + (a.currentValue || a.value || 0), 0);
     const totalValue = assets.reduce((sum, a) => sum + (a.value || 0), 0);
 
     // by ward
@@ -61,7 +66,7 @@ exports.getSummaryReport = async (req, res) => {
     const responsePayload = {
       success: true,
       data: {
-        summary: { total, active, deleted, maintenance, totalValue },
+        summary: { total, assigned, unassigned, newAssets, maintenance, disposed, checkedOut, flaggedMissing, totalValue, totalCurrentValue },
         byWard: Object.values(byWard),
         byDepartment: Object.values(byDept),
         byType: Object.values(byType)

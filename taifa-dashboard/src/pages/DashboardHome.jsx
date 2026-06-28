@@ -159,24 +159,40 @@ export default function DashboardHome() {
           <div style={styles.statValue}>{summary?.total || 0}</div>
         </div>
         <div style={styles.statCard("#10b981")}>
-          <div style={styles.statLabel}>Active</div>
-          <div style={styles.statValue}>{summary?.active || 0}</div>
+          <div style={styles.statLabel}>Assigned</div>
+          <div style={styles.statValue}>{summary?.assigned || 0}</div>
+        </div>
+        <div style={styles.statCard("#6b7280")}>
+          <div style={styles.statLabel}>Unassigned</div>
+          <div style={styles.statValue}>{summary?.unassigned || 0}</div>
         </div>
         <div style={styles.statCard("#f59e0b")}>
           <div style={styles.statLabel}>Maintenance</div>
           <div style={styles.statValue}>{summary?.maintenance || 0}</div>
         </div>
-        {!isViewer && (
-          <div style={styles.statCard("#10b981")}>
-            <div style={styles.statLabel}>Transfers</div>
-            <div style={styles.statValue}>{transfers.length}</div>
-          </div>
-        )}
+        <div style={styles.statCard("#dc2626")}>
+          <div style={styles.statLabel}>Disposed</div>
+          <div style={styles.statValue}>{summary?.disposed || 0}</div>
+        </div>
+        <div style={styles.statCard("#7c3aed")}>
+          <div style={styles.statLabel}>Checked Out</div>
+          <div style={styles.statValue}>{summary?.checkedOut || 0}</div>
+        </div>
+        <div style={styles.statCard("#dc2626")}>
+          <div style={styles.statLabel}>🚨 Missing</div>
+          <div style={styles.statValue}>{summary?.flaggedMissing || 0}</div>
+        </div>
+        <div style={styles.statCard("#0d9488")}>
+          <div style={styles.statLabel}>NEW (IFMIS)</div>
+          <div style={styles.statValue}>{summary?.newAssets || 0}</div>
+        </div>
         <div style={styles.statCard("#3b82f6")}>
-          <div style={styles.statLabel}>Total Value</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b" }}>
-            KES {(summary?.totalValue || 0).toLocaleString()}
-          </div>
+          <div style={styles.statLabel}>Original Value</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>KES {(summary?.totalValue || 0).toLocaleString()}</div>
+        </div>
+        <div style={styles.statCard("#0d9488")}>
+          <div style={styles.statLabel}>Current Value</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>KES {(summary?.totalCurrentValue || 0).toLocaleString()}</div>
         </div>
       </div>
 
