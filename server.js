@@ -135,6 +135,7 @@ app.use("/api/categories", require("./src/routes/categories"));
 app.use("/api/disposals", require("./src/routes/disposals"));
 app.use("/api/ifmis", require("./src/routes/ifmis"));
 app.use("/api/checkinout", require("./src/routes/checkInOut"));
+app.use("/api/otp", require("./src/routes/otp"));
 
 app.use(
   "/api/maintenance",
