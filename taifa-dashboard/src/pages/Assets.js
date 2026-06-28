@@ -25,6 +25,14 @@ export default function Assets() {
     name: "", type: "", ward: "", department: "",
     value: "", custodian: "", location: "", acquisitionDate: ""
   });
+  const [activeAssetMenu, setActiveAssetMenu] = useState(null);
+  const [custodyModal, setCustodyModal] = useState(null);
+  const [valuationModal, setValuationModal] = useState(null);
+  const [disposalModal, setDisposalModal] = useState(null);
+  const [documentModal, setDocumentModal] = useState(null);
+  const [custodyLog, setCustodyLog] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [custodyLogModal, setCustodyLogModal] = useState(null);
 
   const user      = JSON.parse(localStorage.getItem("user") || "{}");
   const { org }   = useOrg();
@@ -37,7 +45,7 @@ export default function Assets() {
   const isAdmin   = user.role === "admin";
   const isManager = user.role === "manager";
 
-  useEffect(() => { loadAssets(); }, []);
+  useEffect(() => { loadAssets(); loadUsers(); }, []);
 
   // Auto-fill department for managers when create form opens
   useEffect(() => {
@@ -71,6 +79,102 @@ export default function Assets() {
       setMessage("❌ Failed to load assets");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const res = await api.get("/auth/users");
+      setUsers(res.data.data || []);
+    } catch (err) {}
+  };
+
+  const handleAssignCustodian = async (assetId, custodianId, custodianName, purpose) => {
+    try {
+      await api.post(`/assets/${assetId}/custodian`, { custodianId, custodianName, purpose });
+      setMessage("✅ Custodian assigned successfully");
+      setCustodyModal(null);
+      loadAssets();
+    } catch (err) {
+      setMessage("❌ " + (err.response?.data?.message || "Failed to assign custodian"));
+    }
+  };
+
+  const handleReleaseCustodian = async (assetId) => {
+    if (!window.confirm("Release custodian from this asset?")) return;
+    try {
+      await api.delete(`/assets/${assetId}/custodian`);
+      setMessage("✅ Custodian released");
+      loadAssets();
+    } catch (err) {
+      setMessage("❌ " + (err.response?.data?.message || "Failed"));
+    }
+  };
+
+  const handleValuation = async (assetId, value, reason, type, notes) => {
+    try {
+      await api.post(`/depreciation/${assetId}/valuations`, { value, valuationReason: reason, appreciationType: type, notes });
+      setMessage("✅ Valuation recorded");
+      setValuationModal(null);
+      loadAssets();
+    } catch (err) {
+      setMessage("❌ " + (err.response?.data?.message || "Failed"));
+    }
+  };
+
+  const handleDispose = async (assetId, method, reason, proceeds, approvedBy) => {
+    try {
+      await api.post(`/disposals/${assetId}/dispose`, { method, reason, proceedsAmount: proceeds, approvedBy });
+      setMessage("✅ Asset disposed successfully");
+      setDisposalModal(null);
+      loadAssets();
+    } catch (err) {
+      setMessage("❌ " + (err.response?.data?.message || "Failed"));
+    }
+  };
+
+  const handleCheckOut = async (assetId, custodianId, custodianName, expectedReturnDate, purpose) => {
+    try {
+      await api.post(`/checkinout/${assetId}/checkout`, { custodianId, custodianName, expectedReturnDate, purpose });
+      setMessage("✅ Asset checked out");
+      setCustodyModal(null);
+      loadAssets();
+    } catch (err) {
+      setMessage("❌ " + (err.response?.data?.message || "Failed"));
+    }
+  };
+
+  const handleCheckIn = async (assetId) => {
+    const condition = window.prompt("Enter return condition (Good/Fair/Poor):");
+    if (condition === null) return;
+    try {
+      await api.post(`/checkinout/${assetId}/checkin`, { condition });
+      setMessage("✅ Asset checked in");
+      loadAssets();
+    } catch (err) {
+      setMessage("❌ " + (err.response?.data?.message || "Failed"));
+    }
+  };
+
+  const handleFlagMissing = async (assetId) => {
+    const reason = window.prompt("Reason for flagging as missing:");
+    if (!reason) return;
+    try {
+      await api.post(`/checkinout/${assetId}/flag-missing`, { reason });
+      setMessage("✅ Asset flagged as missing");
+      loadAssets();
+    } catch (err) {
+      setMessage("❌ " + (err.response?.data?.message || "Failed"));
+    }
+  };
+
+  const loadCustodyLog = async (asset) => {
+    try {
+      const res = await api.get(`/assets/${asset.assetId}/custody-log`);
+      setCustodyLog(res.data.data || []);
+      setCustodyLogModal(asset);
+    } catch (err) {
+      setMessage("❌ Failed to load custody log");
     }
   };
 
@@ -376,17 +480,29 @@ export default function Assets() {
             </div>
             <div style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
               <button style={styles.qrBtn} onClick={() => setQrAsset(asset)}>QR</button>
+              <button style={styles.logBtn} onClick={() => loadCustodyLog(asset)}>📋 Log</button>
               {canEdit && !canView && asset.status !== "DISPOSED" && (
                 <button style={styles.editBtn} onClick={() => { setEditAsset({ ...asset }); setMessage(""); }}>Edit</button>
               )}
-              {isAdmin && (asset.status === "DISPOSED"
-                ? <button style={styles.restoreBtn} onClick={() => handleRestore(asset)}>Restore</button>
-                : <button style={styles.deleteBtn} onClick={() => handleDelete(asset)}>Delete</button>
+              {canEdit && asset.status !== "DISPOSED" && (
+                asset.checkedOut
+                  ? <button style={styles.checkinBtn} onClick={() => handleCheckIn(asset.assetId)}>✅ In</button>
+                  : <button style={styles.checkoutBtn} onClick={() => setCustodyModal({ asset, mode: "checkout" })}>📤 Out</button>
+              )}
+              {isAdmin && asset.status !== "DISPOSED" && (
+                <>
+                  <button style={styles.valuationBtn} onClick={() => setValuationModal(asset)}>💰 Value</button>
+                  <button style={styles.disposalBtn} onClick={() => setDisposalModal(asset)}>🗑️ Dispose</button>
+                </>
+              )}
+              {isAdmin && asset.status !== "DISPOSED" && (
+                <button style={styles.deleteBtn} onClick={() => handleDelete(asset)}>Delete</button>
               )}
             </div>
           </div>
         ))}
       </div>
+
 
       {/* Edit Modal */}
       {editAsset && (
@@ -458,6 +574,58 @@ export default function Assets() {
           </div>
         </div>
       )}
+
+      {/* Custody Log Modal */}
+      {custodyLogModal && (
+        <div style={styles.overlay}>
+          <div style={{ ...styles.modal, maxWidth: 500 }}>
+            <h3 style={{ margin: 0 }}>📋 Custody Log — {custodyLogModal.name}</h3>
+            <div style={{ maxHeight: 300, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+              {custodyLog.length === 0 ? <p style={{ color: "#6b7280" }}>No custody records yet.</p>
+                : custodyLog.map(log => (
+                  <div key={log.id} style={{ background: "#f9fafb", borderRadius: 6, padding: 10, fontSize: 13 }}>
+                    <div><strong>👤 {log.custodianName}</strong></div>
+                    <div style={{ color: "#6b7280" }}>From: {log.startDate ? new Date(log.startDate._seconds * 1000).toLocaleDateString() : "—"}</div>
+                    <div style={{ color: log.endDate ? "#6b7280" : "#16a34a" }}>To: {log.endDate ? new Date(log.endDate._seconds * 1000).toLocaleDateString() : "Current"}</div>
+                    {log.purpose && <div style={{ color: "#374151" }}>Purpose: {log.purpose}</div>}
+                  </div>
+                ))}
+            </div>
+            <button style={styles.cancelBtn} onClick={() => setCustodyLogModal(null)}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* Checkout Modal */}
+      {custodyModal && (
+        <div style={styles.overlay}>
+          <div style={styles.modal}>
+            <h3 style={{ margin: 0 }}>📤 Check Out — {custodyModal.asset.name}</h3>
+            <CheckoutForm users={users} onSubmit={(cId, cName, ret, pur) => handleCheckOut(custodyModal.asset.assetId, cId, cName, ret, pur)} onCancel={() => setCustodyModal(null)} />
+          </div>
+        </div>
+      )}
+
+      {/* Valuation Modal */}
+      {valuationModal && (
+        <div style={styles.overlay}>
+          <div style={styles.modal}>
+            <h3 style={{ margin: 0 }}>💰 Valuation — {valuationModal.name}</h3>
+            <p style={{ margin: "4px 0 8px", fontSize: 13, color: "#6b7280" }}>Current: KES {(valuationModal.currentValue || valuationModal.value || 0).toLocaleString()}</p>
+            <ValuationForm onSubmit={(v, r, t, n) => handleValuation(valuationModal.assetId, v, r, t, n)} onCancel={() => setValuationModal(null)} />
+          </div>
+        </div>
+      )}
+
+      {/* Disposal Modal */}
+      {disposalModal && (
+        <div style={styles.overlay}>
+          <div style={styles.modal}>
+            <h3 style={{ margin: 0 }}>🗑️ Dispose — {disposalModal.name}</h3>
+            <DisposalForm onSubmit={(m, r, p, a) => handleDispose(disposalModal.assetId, m, r, p, a)} onCancel={() => setDisposalModal(null)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -475,5 +643,87 @@ const styles = {
   card:       { background: "white", border: "1px solid #e5e7eb", borderRadius: 8, padding: 14, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" },
   badge:      { color: "white", fontSize: 11, padding: "2px 8px", borderRadius: 12, fontWeight: "bold" },
   overlay:    { position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 },
-  modal:      { background: "white", borderRadius: 12, padding: 24, width: "100%", maxWidth: 420, maxHeight: "90vh", overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }
+  modal:      { background: "white", borderRadius: 12, padding: 24, width: "100%", maxWidth: 420, maxHeight: "90vh", overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 },
+  logBtn:      { background: "#0d9488", color: "white", border: "none", padding: "7px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13 },
+  checkoutBtn: { background: "#7c3aed", color: "white", border: "none", padding: "7px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13 },
+  checkinBtn:  { background: "#16a34a", color: "white", border: "none", padding: "7px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13 },
+  valuationBtn:{ background: "#2563eb", color: "white", border: "none", padding: "7px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13 },
+  disposalBtn: { background: "#dc2626", color: "white", border: "none", padding: "7px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13 },
 };
+
+function CheckoutForm({ users, onSubmit, onCancel }) {
+  const [custodianId, setCustodianId] = useState("");
+  const [custodianName, setCustodianName] = useState("");
+  const [expectedReturnDate, setExpectedReturnDate] = useState("");
+  const [purpose, setPurpose] = useState("");
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
+      <select style={formInput} value={custodianId} onChange={e => {
+        const u = users.find(u => u.id === e.target.value);
+        setCustodianId(e.target.value);
+        setCustodianName(u ? u.name : "");
+      }}>
+        <option value="">-- Select Custodian *</option>
+        {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.department || u.role})</option>)}
+      </select>
+      <input style={formInput} type="date" placeholder="Expected Return Date" value={expectedReturnDate} onChange={e => setExpectedReturnDate(e.target.value)} />
+      <input style={formInput} placeholder="Purpose" value={purpose} onChange={e => setPurpose(e.target.value)} />
+      <div style={{ display: "flex", gap: 8 }}>
+        <button style={formBtn} onClick={() => onSubmit(custodianId, custodianName, expectedReturnDate, purpose)} disabled={!custodianId}>Check Out</button>
+        <button style={formCancelBtn} onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function ValuationForm({ onSubmit, onCancel }) {
+  const [value, setValue] = useState("");
+  const [reason, setReason] = useState("");
+  const [type, setType] = useState("DEPRECIATION");
+  const [notes, setNotes] = useState("");
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
+      <input style={formInput} type="number" placeholder="New Value (KES) *" value={value} onChange={e => setValue(e.target.value)} />
+      <select style={formInput} value={type} onChange={e => setType(e.target.value)}>
+        <option value="DEPRECIATION">DEPRECIATION</option>
+        <option value="APPRECIATION">APPRECIATION</option>
+      </select>
+      <input style={formInput} placeholder="Reason *" value={reason} onChange={e => setReason(e.target.value)} />
+      <input style={formInput} placeholder="Notes (optional)" value={notes} onChange={e => setNotes(e.target.value)} />
+      <div style={{ display: "flex", gap: 8 }}>
+        <button style={formBtn} onClick={() => onSubmit(Number(value), reason, type, notes)} disabled={!value || !reason}>Record Valuation</button>
+        <button style={formCancelBtn} onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function DisposalForm({ onSubmit, onCancel }) {
+  const METHODS = ["TRANSFER","LEASING","TRANSFER_TO_OTHER_AUTHORITY","SALE_BY_TENDER","SALE_BY_PUBLIC_AUCTION","TRADE_IN","BURNING","DESTRUCTION","CANCELLATION"];
+  const [method, setMethod] = useState("");
+  const [reason, setReason] = useState("");
+  const [proceeds, setProceeds] = useState("");
+  const [approvedBy, setApprovedBy] = useState("");
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
+      <select style={formInput} value={method} onChange={e => setMethod(e.target.value)}>
+        <option value="">-- Disposal Method *</option>
+        {METHODS.map(m => <option key={m} value={m}>{m.replace(/_/g, " ")}</option>)}
+      </select>
+      <input style={formInput} placeholder="Reason *" value={reason} onChange={e => setReason(e.target.value)} />
+      <input style={formInput} type="number" placeholder="Proceeds Amount (KES)" value={proceeds} onChange={e => setProceeds(e.target.value)} />
+      <input style={formInput} placeholder="Approved By" value={approvedBy} onChange={e => setApprovedBy(e.target.value)} />
+      <div style={{ background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 6, padding: 10, fontSize: 12, color: "#dc2626" }}>
+        ⚠️ This action is permanent and cannot be undone.
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button style={{ ...formBtn, background: "#dc2626" }} onClick={() => onSubmit(method, reason, proceeds, approvedBy)} disabled={!method || !reason}>Confirm Disposal</button>
+        <button style={formCancelBtn} onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+const formInput = { padding: "10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 14, width: "100%", boxSizing: "border-box" };
+const formBtn = { background: "#06122b", color: "white", border: "none", padding: "10px 18px", borderRadius: 6, cursor: "pointer", fontSize: 14 };
+const formCancelBtn = { background: "#e5e7eb", color: "#374151", border: "none", padding: "10px 18px", borderRadius: 6, cursor: "pointer", fontSize: 14 };
