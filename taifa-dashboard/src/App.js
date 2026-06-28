@@ -16,6 +16,10 @@ import OrgSettings from "./pages/OrgSettings";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Categories from "./pages/Categories.jsx";
+import CheckInOut from "./pages/CheckInOut.jsx";
+import Disposals from "./pages/Disposals.jsx";
+import Profile from "./pages/Profile.js";
 
 export default function App() {
   return (
@@ -37,6 +41,10 @@ export default function App() {
           <Route path="settings"       element={<Settings />} />
           <Route path="organizations" element={<Organizations />} />
           <Route path="org-settings" element={<OrgSettings />} />
+          <Route path="categories" element={<Categories />} />
+          <Route path="checkinout" element={<CheckInOut />} />
+          <Route path="disposals" element={<Disposals />} />
+          <Route path="profile" element={<Profile />} />
         </Route>
       </Routes>
     </BrowserRouter>

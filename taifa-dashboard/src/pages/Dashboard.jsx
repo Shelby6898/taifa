@@ -15,7 +15,11 @@ const navItems = [
   { path: "/dashboard/users",        icon: "👥", label: "Users",  adminOnly: true },
   { path: "/dashboard/organizations", icon: "🏢", label: "Organizations", superAdminOnly: true },
   { path: "/dashboard/settings",     icon: "⚙️", label: "Settings" },
+  { path: "/dashboard/profile",      icon: "👤", label: "My Profile" },
   { path: "/dashboard/org-settings", icon: "🏢", label: "Org Settings", adminOnly: true, hideSuperAdmin: true },
+  { path: "/dashboard/categories",   icon: "🗂️", label: "Categories",  adminOnly: true },
+  { path: "/dashboard/checkinout",   icon: "🔄", label: "Check In/Out", hideViewer: true },
+  { path: "/dashboard/disposals",    icon: "🗑️", label: "Disposals",   adminOnly: true },
 ];
 
 export default function Dashboard() {

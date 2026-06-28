@@ -8,7 +8,7 @@ export default function Profile() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", jobTitle: "", employeeNumber: "" });
   const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [showPwForm, setShowPwForm] = useState(false);
   const [message, setMessage] = useState("");
@@ -21,7 +21,13 @@ export default function Profile() {
     try {
       const res = await api.get("/auth/profile");
       setProfile(res.data.data);
-      setForm({ name: res.data.data.name, email: res.data.data.email });
+      setForm({
+        name: res.data.data.name || "",
+        email: res.data.data.email || "",
+        phone: res.data.data.phone || "",
+        jobTitle: res.data.data.jobTitle || "",
+        employeeNumber: res.data.data.employeeNumber || ""
+      });
     } catch (err) {
       setMessage("❌ Failed to load profile");
     } finally {
@@ -36,8 +42,7 @@ export default function Profile() {
     }
     setSubmitting(true);
     try {
-      await api.put("/auth/profile", form);
-      // Update localStorage
+      await api.put("/auth/profile/expanded", form);
       const user = JSON.parse(localStorage.getItem("user") || "{}");
       localStorage.setItem("user", JSON.stringify({ ...user, name: form.name }));
       setMessage("✅ Profile updated successfully!");
@@ -81,120 +86,97 @@ export default function Profile() {
 
   if (loading) return <p style={{ padding: 20 }}>Loading profile...</p>;
 
-  const initials = profile?.name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "?";
-
   return (
-    <div style={{ padding: 16, maxWidth: 500 }}>
-      <h2 style={{ margin: 0 }}>👤 My Profile</h2>
+    <div style={{ padding: 16, maxWidth: 520 }}>
+      <h2 style={{ margin: "0 0 16px" }}>👤 My Profile</h2>
 
-      {message && <p style={{ marginTop: 10, color: message.startsWith("✅") ? "green" : "#dc2626" }}>{message}</p>}
+      {message && <p style={{ color: message.startsWith("✅") ? "green" : "#dc2626", marginBottom: 12 }}>{message}</p>}
 
-      {/* Avatar & Role */}
-      <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 20, background: "white", borderRadius: 12, padding: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
-        <div style={{ width: 72, height: 72, borderRadius: "50%", background: roleColors[profile?.role] || "#06122b", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 28, fontWeight: "bold", flexShrink: 0 }}>
-          {initials}
-        </div>
-        <div>
-          <div style={{ fontSize: 20, fontWeight: "bold" }}>{profile?.name}</div>
-          <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>{profile?.email}</div>
-          <div style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <span style={{ background: roleColors[profile?.role], color: "white", fontSize: 11, padding: "3px 10px", borderRadius: 12, fontWeight: "bold" }}>
+      {/* Profile Card */}
+      <div style={styles.card}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
+          <div style={styles.avatar}>
+            {profile?.name?.[0]?.toUpperCase() || "?"}
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 18 }}>{profile?.name}</div>
+            <div style={{ fontSize: 13, color: "#6b7280" }}>{profile?.email}</div>
+            <span style={{ ...styles.badge, background: roleColors[profile?.role] || "#6b7280" }}>
               {roleLabel[profile?.role] || profile?.role}
             </span>
-            {profile?.department && (
-              <span style={{ background: "#e5e7eb", color: "#374151", fontSize: 11, padding: "3px 10px", borderRadius: 12 }}>
-                📁 {profile.department}
-              </span>
-            )}
           </div>
         </div>
-      </div>
 
-      {/* Account Info */}
-      <div style={{ background: "white", borderRadius: 12, padding: 20, marginTop: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <h3 style={{ margin: 0, fontSize: 16 }}>Account Information</h3>
-          {!editMode && (
-            <button style={styles.editBtn} onClick={() => { setEditMode(true); setMessage(""); }}>Edit</button>
-          )}
+        <div style={styles.infoGrid}>
+          <div style={styles.infoItem}><span style={styles.infoLabel}>Department</span><span>{profile?.department || "—"}</span></div>
+          <div style={styles.infoItem}><span style={styles.infoLabel}>Job Title</span><span>{profile?.jobTitle || "—"}</span></div>
+          <div style={styles.infoItem}><span style={styles.infoLabel}>Employee No.</span><span>{profile?.employeeNumber || "—"}</span></div>
+          <div style={styles.infoItem}><span style={styles.infoLabel}>Phone</span><span>{profile?.phone || "—"}</span></div>
+          <div style={styles.infoItem}><span style={styles.infoLabel}>Status</span>
+            <span style={{ color: profile?.userStatus === "active" ? "#16a34a" : "#dc2626", fontWeight: 600 }}>
+              {profile?.userStatus || "active"}
+            </span>
+          </div>
+          <div style={styles.infoItem}><span style={styles.infoLabel}>Last Login</span>
+            <span style={{ fontSize: 12 }}>{profile?.lastLoginAt ? new Date(profile.lastLoginAt).toLocaleString() : "—"}</span>
+          </div>
         </div>
 
-        {editMode ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div>
-              <label style={styles.label}>Full Name</label>
-              <input style={styles.input} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-            </div>
-            <div>
-              <label style={styles.label}>Email Address</label>
-              <input style={styles.input} type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
-            </div>
-            <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-              <button style={styles.btn} onClick={handleUpdate} disabled={submitting}>
-                {submitting ? "Saving..." : "Save Changes"}
-              </button>
-              <button style={styles.cancelBtn} onClick={() => { setEditMode(false); setMessage(""); setForm({ name: profile.name, email: profile.email }); }}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {[
-              { label: "Full Name", value: profile?.name },
-              { label: "Email", value: profile?.email },
-              { label: "Role", value: roleLabel[profile?.role] || profile?.role },
-              { label: "Department", value: profile?.department || "All Departments" },
-              { label: "Member Since", value: profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString("en-KE", { year: "numeric", month: "long", day: "numeric" }) : "-" }
-            ].map(item => (
-              <div key={item.label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f3f4f6" }}>
-                <span style={{ fontSize: 13, color: "#6b7280" }}>{item.label}</span>
-                <span style={{ fontSize: 13, fontWeight: "500", textAlign: "right", maxWidth: "60%" }}>{item.value}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Change Password */}
-      <div style={{ background: "white", borderRadius: 12, padding: 20, marginTop: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h3 style={{ margin: 0, fontSize: 16 }}>🔒 Password</h3>
-          <button style={styles.editBtn} onClick={() => { setShowPwForm(!showPwForm); setPwMessage(""); }}>
-            {showPwForm ? "Cancel" : "Change"}
+        <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+          <button style={styles.btn} onClick={() => { setEditMode(!editMode); setMessage(""); }}>
+            {editMode ? "Cancel" : "✏️ Edit Profile"}
+          </button>
+          <button style={styles.outlineBtn} onClick={() => setShowPwForm(!showPwForm)}>
+            🔑 Change Password
           </button>
         </div>
-
-        {pwMessage && <p style={{ marginTop: 10, color: pwMessage.startsWith("✅") ? "green" : "#dc2626", fontSize: 13 }}>{pwMessage}</p>}
-
-        {showPwForm && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
-            <div>
-              <label style={styles.label}>Current Password</label>
-              <input style={styles.input} type="password" placeholder="Enter current password" value={pwForm.currentPassword} onChange={e => setPwForm({ ...pwForm, currentPassword: e.target.value })} />
-            </div>
-            <div>
-              <label style={styles.label}>New Password</label>
-              <input style={styles.input} type="password" placeholder="Min. 6 characters" value={pwForm.newPassword} onChange={e => setPwForm({ ...pwForm, newPassword: e.target.value })} />
-            </div>
-            <div>
-              <label style={styles.label}>Confirm New Password</label>
-              <input style={styles.input} type="password" placeholder="Repeat new password" value={pwForm.confirmPassword} onChange={e => setPwForm({ ...pwForm, confirmPassword: e.target.value })} />
-            </div>
-            <button style={styles.btn} onClick={handlePasswordChange} disabled={submitting}>
-              {submitting ? "Changing..." : "Change Password"}
-            </button>
-          </div>
-        )}
       </div>
+
+      {/* Edit Form */}
+      {editMode && (
+        <div style={styles.card}>
+          <h3 style={{ margin: "0 0 12px" }}>Edit Profile</h3>
+          <div style={styles.formGrid}>
+            <input style={styles.input} placeholder="Full Name *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+            <input style={styles.input} placeholder="Email *" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+            <input style={styles.input} placeholder="Phone (e.g. 0712345678)" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+            <input style={styles.input} placeholder="Job Title" value={form.jobTitle} onChange={e => setForm({ ...form, jobTitle: e.target.value })} />
+            <input style={styles.input} placeholder="Employee Number" value={form.employeeNumber} onChange={e => setForm({ ...form, employeeNumber: e.target.value })} />
+          </div>
+          <button style={styles.btn} onClick={handleUpdate} disabled={submitting}>
+            {submitting ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      )}
+
+      {/* Change Password */}
+      {showPwForm && (
+        <div style={styles.card}>
+          <h3 style={{ margin: "0 0 12px" }}>Change Password</h3>
+          {pwMessage && <p style={{ color: pwMessage.startsWith("✅") ? "green" : "#dc2626", fontSize: 14 }}>{pwMessage}</p>}
+          <div style={styles.formGrid}>
+            <input style={styles.input} type="password" placeholder="Current Password" value={pwForm.currentPassword} onChange={e => setPwForm({ ...pwForm, currentPassword: e.target.value })} />
+            <input style={styles.input} type="password" placeholder="New Password" value={pwForm.newPassword} onChange={e => setPwForm({ ...pwForm, newPassword: e.target.value })} />
+            <input style={styles.input} type="password" placeholder="Confirm New Password" value={pwForm.confirmPassword} onChange={e => setPwForm({ ...pwForm, confirmPassword: e.target.value })} />
+          </div>
+          <button style={styles.btn} onClick={handlePasswordChange} disabled={submitting}>
+            {submitting ? "Changing..." : "Change Password"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
 const styles = {
+  card: { background: "white", border: "1px solid #e5e7eb", borderRadius: 10, padding: 20, marginBottom: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.06)" },
+  avatar: { width: 56, height: 56, borderRadius: "50%", background: "#06122b", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: "bold", flexShrink: 0 },
+  badge: { color: "white", fontSize: 11, padding: "2px 8px", borderRadius: 12, fontWeight: "bold", display: "inline-block", marginTop: 4 },
+  infoGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 },
+  infoItem: { display: "flex", flexDirection: "column", gap: 2 },
+  infoLabel: { fontSize: 11, color: "#9ca3af", textTransform: "uppercase", fontWeight: 600 },
+  formGrid: { display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 },
+  input: { padding: "10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 14 },
   btn: { background: "#06122b", color: "white", border: "none", padding: "10px 18px", borderRadius: 6, cursor: "pointer", fontSize: 14 },
-  cancelBtn: { background: "#e5e7eb", color: "#374151", border: "none", padding: "10px 18px", borderRadius: 6, cursor: "pointer", fontSize: 14 },
-  editBtn: { background: "#e5e7eb", color: "#374151", border: "none", padding: "7px 14px", borderRadius: 6, cursor: "pointer", fontSize: 13 },
-  input: { padding: "10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 14, width: "100%", boxSizing: "border-box", marginTop: 4 },
-  label: { fontSize: 12, color: "#6b7280", fontWeight: "500" }
+  outlineBtn: { background: "white", color: "#06122b", border: "1px solid #06122b", padding: "10px 18px", borderRadius: 6, cursor: "pointer", fontSize: 14 }
 };
