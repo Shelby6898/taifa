@@ -25,11 +25,11 @@ export default function Assets() {
     name: "", type: "", ward: "", department: "",
     value: "", custodian: "", location: "", acquisitionDate: ""
   });
-  const [activeAssetMenu, setActiveAssetMenu] = useState(null);
+  // activeAssetMenu reserved for future dropdown menu
   const [custodyModal, setCustodyModal] = useState(null);
   const [valuationModal, setValuationModal] = useState(null);
   const [disposalModal, setDisposalModal] = useState(null);
-  const [documentModal, setDocumentModal] = useState(null);
+  // documentModal reserved for document upload feature
   const [custodyLog, setCustodyLog] = useState([]);
   const [users, setUsers] = useState([]);
   const [custodyLogModal, setCustodyLogModal] = useState(null);
@@ -89,6 +89,7 @@ export default function Assets() {
     } catch (err) {}
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleAssignCustodian = async (assetId, custodianId, custodianName, purpose) => {
     try {
       await api.post(`/assets/${assetId}/custodian`, { custodianId, custodianName, purpose });
@@ -100,6 +101,7 @@ export default function Assets() {
     }
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleReleaseCustodian = async (assetId) => {
     if (!window.confirm("Release custodian from this asset?")) return;
     try {
@@ -156,6 +158,7 @@ export default function Assets() {
     }
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleFlagMissing = async (assetId) => {
     const reason = window.prompt("Reason for flagging as missing:");
     if (!reason) return;
@@ -262,6 +265,7 @@ export default function Assets() {
     }
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleRestore = async (asset) => {
     try {
       await api.patch(`/assets/${asset.assetId}/restore`);
