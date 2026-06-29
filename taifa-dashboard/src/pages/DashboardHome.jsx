@@ -151,6 +151,8 @@ export default function DashboardHome() {
         </div>
       </div>
 
+      {!isViewer && (
+        <>
       {/* Asset Stats */}
       <p style={styles.sectionTitle}>🏛️ Asset Overview</p>
       <div style={styles.grid4}>
@@ -195,6 +197,8 @@ export default function DashboardHome() {
           <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>KES {(summary?.totalCurrentValue || 0).toLocaleString()}</div>
         </div>
       </div>
+        </>
+      )}
 
       {/* Transfer Stats - hidden for viewers */}
       {!isViewer && (
