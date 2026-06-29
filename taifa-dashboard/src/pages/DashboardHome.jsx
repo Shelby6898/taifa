@@ -13,6 +13,8 @@ export default function DashboardHome() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const navigate = useNavigate();
   const isViewer = user.role === "viewer";
+  const isManager = user.role === "manager";
+  const isAdmin = user.role === "admin";
   const { org } = useOrg();
 
   const [summary,   setSummary]   = useState(null);
@@ -153,51 +155,65 @@ export default function DashboardHome() {
 
       {!isViewer && (
         <>
-      {/* Asset Stats */}
-      <p style={styles.sectionTitle}>🏛️ Asset Overview</p>
-      <div style={styles.grid4}>
-        <div style={styles.statCard("#6366f1")}>
-          <div style={styles.statLabel}>Total Assets</div>
-          <div style={styles.statValue}>{summary?.total || 0}</div>
+        {/* Asset Stats */}
+        <p style={styles.sectionTitle}>🏛️ Asset Overview</p>
+        <div style={styles.grid4}>
+          <div style={styles.statCard("#6366f1")}>
+            <div style={styles.statLabel}>Total Assets</div>
+            <div style={styles.statValue}>{summary?.total || 0}</div>
+          </div>
+          <div style={styles.statCard("#10b981")}>
+            <div style={styles.statLabel}>Assigned</div>
+            <div style={styles.statValue}>{summary?.assigned || 0}</div>
+          </div>
+          <div style={styles.statCard("#6b7280")}>
+            <div style={styles.statLabel}>Unassigned</div>
+            <div style={styles.statValue}>{summary?.unassigned || 0}</div>
+          </div>
+          <div style={styles.statCard("#f59e0b")}>
+            <div style={styles.statLabel}>Maintenance</div>
+            <div style={styles.statValue}>{summary?.maintenance || 0}</div>
+          </div>
+          <div style={styles.statCard("#7c3aed")}>
+            <div style={styles.statLabel}>Checked Out</div>
+            <div style={styles.statValue}>{summary?.checkedOut || 0}</div>
+          </div>
+          {isAdmin && (
+            <>
+              <div style={styles.statCard("#dc2626")}>
+                <div style={styles.statLabel}>Disposed</div>
+                <div style={styles.statValue}>{summary?.disposed || 0}</div>
+              </div>
+              <div style={styles.statCard("#dc2626")}>
+                <div style={styles.statLabel}>🚨 Missing</div>
+                <div style={styles.statValue}>{summary?.flaggedMissing || 0}</div>
+              </div>
+              <div style={styles.statCard("#0d9488")}>
+                <div style={styles.statLabel}>NEW (IFMIS)</div>
+                <div style={styles.statValue}>{summary?.newAssets || 0}</div>
+              </div>
+            </>
+          )}
+          <div style={styles.statCard("#3b82f6")}>
+            <div style={styles.statLabel}>Original Value</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>KES {(summary?.totalValue || 0).toLocaleString()}</div>
+          </div>
+          <div style={styles.statCard("#0d9488")}>
+            <div style={styles.statLabel}>Current Value</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>KES {(summary?.totalCurrentValue || 0).toLocaleString()}</div>
+          </div>
         </div>
-        <div style={styles.statCard("#10b981")}>
-          <div style={styles.statLabel}>Assigned</div>
-          <div style={styles.statValue}>{summary?.assigned || 0}</div>
-        </div>
-        <div style={styles.statCard("#6b7280")}>
-          <div style={styles.statLabel}>Unassigned</div>
-          <div style={styles.statValue}>{summary?.unassigned || 0}</div>
-        </div>
-        <div style={styles.statCard("#f59e0b")}>
-          <div style={styles.statLabel}>Maintenance</div>
-          <div style={styles.statValue}>{summary?.maintenance || 0}</div>
-        </div>
-        <div style={styles.statCard("#dc2626")}>
-          <div style={styles.statLabel}>Disposed</div>
-          <div style={styles.statValue}>{summary?.disposed || 0}</div>
-        </div>
-        <div style={styles.statCard("#7c3aed")}>
-          <div style={styles.statLabel}>Checked Out</div>
-          <div style={styles.statValue}>{summary?.checkedOut || 0}</div>
-        </div>
-        <div style={styles.statCard("#dc2626")}>
-          <div style={styles.statLabel}>🚨 Missing</div>
-          <div style={styles.statValue}>{summary?.flaggedMissing || 0}</div>
-        </div>
-        <div style={styles.statCard("#0d9488")}>
-          <div style={styles.statLabel}>NEW (IFMIS)</div>
-          <div style={styles.statValue}>{summary?.newAssets || 0}</div>
-        </div>
-        <div style={styles.statCard("#3b82f6")}>
-          <div style={styles.statLabel}>Original Value</div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>KES {(summary?.totalValue || 0).toLocaleString()}</div>
-        </div>
-        <div style={styles.statCard("#0d9488")}>
-          <div style={styles.statLabel}>Current Value</div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>KES {(summary?.totalCurrentValue || 0).toLocaleString()}</div>
-        </div>
-      </div>
         </>
+      )}
+
+      {/* Viewer — show only their assigned assets */}
+      {isViewer && (
+        <div style={styles.card}>
+          <p style={{ margin: 0, color: "#6b7280", fontSize: 14 }}>
+            You have <strong>{summary?.assigned || 0}</strong> asset(s) assigned to you.
+            Go to <span style={{ color: "#06122b", cursor: "pointer", fontWeight: 600 }} onClick={() => navigate("/dashboard/assets")}>Assets</span> to view them.
+          </p>
+        </div>
       )}
 
       {/* Transfer Stats - hidden for viewers */}
