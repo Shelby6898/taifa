@@ -20,6 +20,7 @@ import Categories from "./pages/Categories.jsx";
 import CheckInOut from "./pages/CheckInOut.jsx";
 import Disposals from "./pages/Disposals.jsx";
 import Profile from "./pages/Profile.js";
+import AssetRequests from "./pages/AssetRequests.jsx";
 
 export default function App() {
   return (
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="checkinout" element={<CheckInOut />} />
           <Route path="disposals" element={<Disposals />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="asset-requests" element={<AssetRequests />} />
         </Route>
       </Routes>
     </BrowserRouter>

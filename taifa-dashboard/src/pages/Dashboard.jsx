@@ -19,6 +19,7 @@ const navItems = [
   { path: "/dashboard/org-settings", icon: "🏢", label: "Org Settings", adminOnly: true, hideSuperAdmin: true },
   { path: "/dashboard/categories",   icon: "🗂️", label: "Categories",  adminOnly: true },
   { path: "/dashboard/checkinout",   icon: "🔄", label: "Check In/Out", hideViewer: true },
+  { path: "/dashboard/asset-requests", icon: "📋", label: "Asset Requests" },
   { path: "/dashboard/disposals",    icon: "🗑️", label: "Disposals",   adminOnly: true },
 ];
 
