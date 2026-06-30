@@ -29,6 +29,7 @@ export default function Assets() {
   const [custodyModal, setCustodyModal] = useState(null);
   const [valuationModal, setValuationModal] = useState(null);
   const [disposalModal, setDisposalModal] = useState(null);
+  const [reallocateModal, setReallocateModal] = useState(null);
   // documentModal reserved for document upload feature
   const [custodyLog, setCustodyLog] = useState([]);
   const [users, setUsers] = useState([]);
@@ -132,6 +133,41 @@ export default function Assets() {
       loadAssets();
     } catch (err) {
       setMessage("❌ " + (err.response?.data?.message || "Failed"));
+    }
+  };
+
+
+  const handleDeactivate = async (assetId, name) => {
+    const reason = window.prompt(`Deactivating "${name}". Enter reason:`);
+    if (!reason) return;
+    try {
+      await api.post(`/assets/${assetId}/deactivate`, { reason });
+      setMessage("✅ Asset deactivated");
+      loadAssets();
+    } catch (err) {
+      setMessage("❌ " + (err.response?.data?.message || "Failed to deactivate"));
+    }
+  };
+
+  const handleActivate = async (assetId, name) => {
+    if (!window.confirm(`Reactivate "${name}"?`)) return;
+    try {
+      await api.post(`/assets/${assetId}/activate`);
+      setMessage("✅ Asset reactivated");
+      loadAssets();
+    } catch (err) {
+      setMessage("❌ " + (err.response?.data?.message || "Failed to activate"));
+    }
+  };
+
+  const handleReallocate = async (assetId, newCustodianId, newCustodianName, reason) => {
+    try {
+      await api.post(`/assets/${assetId}/reallocate`, { newCustodianId, newCustodianName, reason });
+      setMessage("✅ Asset reallocated successfully");
+      setReallocateModal(null);
+      loadAssets();
+    } catch (err) {
+      setMessage("❌ " + (err.response?.data?.message || "Failed to reallocate"));
     }
   };
 
@@ -499,6 +535,15 @@ export default function Assets() {
                   <button style={styles.disposalBtn} onClick={() => setDisposalModal(asset)}>🗑️ Dispose</button>
                 </>
               )}
+              {isAdmin && asset.status !== "DISPOSED" && asset.status !== "DEACTIVATED" && (
+                <button style={styles.deactivateBtn} onClick={() => handleDeactivate(asset.assetId, asset.name)}>⏸️ Deactivate</button>
+              )}
+              {isAdmin && asset.status === "DEACTIVATED" && (
+                <button style={styles.activateBtn} onClick={() => handleActivate(asset.assetId, asset.name)}>▶️ Activate</button>
+              )}
+              {(isAdmin || isManager) && asset.custodian && asset.status !== "DISPOSED" && (
+                <button style={styles.reallocateBtn} onClick={() => setReallocateModal(asset)}>🔁 Reallocate</button>
+              )}
               {isAdmin && asset.status !== "DISPOSED" && (
                 <button style={styles.deleteBtn} onClick={() => handleDelete(asset)}>Delete</button>
               )}
@@ -630,6 +675,17 @@ export default function Assets() {
           </div>
         </div>
       )}
+
+      {/* Reallocate Modal */}
+      {reallocateModal && (
+        <div style={styles.overlay}>
+          <div style={styles.modal}>
+            <h3 style={{ margin: 0 }}>🔁 Reallocate — {reallocateModal.name}</h3>
+            <p style={{ margin: "4px 0 8px", fontSize: 13, color: "#6b7280" }}>Currently with: <strong>{reallocateModal.custodian}</strong></p>
+            <ReallocateForm users={users} onSubmit={(cId, cName, reason) => handleReallocate(reallocateModal.assetId, cId, cName, reason)} onCancel={() => setReallocateModal(null)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -653,6 +709,9 @@ const styles = {
   checkinBtn:  { background: "#16a34a", color: "white", border: "none", padding: "7px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13 },
   valuationBtn:{ background: "#2563eb", color: "white", border: "none", padding: "7px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13 },
   disposalBtn: { background: "#dc2626", color: "white", border: "none", padding: "7px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13 },
+  deactivateBtn: { background: "#f59e0b", color: "white", border: "none", padding: "7px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13 },
+  activateBtn: { background: "#16a34a", color: "white", border: "none", padding: "7px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13 },
+  reallocateBtn: { background: "#0891b2", color: "white", border: "none", padding: "7px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13 },
 };
 
 function CheckoutForm({ users, onSubmit, onCancel }) {
@@ -722,6 +781,30 @@ function DisposalForm({ onSubmit, onCancel }) {
       </div>
       <div style={{ display: "flex", gap: 8 }}>
         <button style={{ ...formBtn, background: "#dc2626" }} onClick={() => onSubmit(method, reason, proceeds, approvedBy)} disabled={!method || !reason}>Confirm Disposal</button>
+        <button style={formCancelBtn} onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+
+function ReallocateForm({ users, onSubmit, onCancel }) {
+  const [custodianId, setCustodianId] = useState("");
+  const [custodianName, setCustodianName] = useState("");
+  const [reason, setReason] = useState("");
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
+      <select style={formInput} value={custodianId} onChange={e => {
+        const u = users.find(u => u.id === e.target.value);
+        setCustodianId(e.target.value);
+        setCustodianName(u ? u.name : "");
+      }}>
+        <option value="">-- New Custodian *</option>
+        {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.department || u.role})</option>)}
+      </select>
+      <input style={formInput} placeholder="Reason for reallocation *" value={reason} onChange={e => setReason(e.target.value)} />
+      <div style={{ display: "flex", gap: 8 }}>
+        <button style={formBtn} onClick={() => onSubmit(custodianId, custodianName, reason)} disabled={!custodianId || !reason}>Reallocate</button>
         <button style={formCancelBtn} onClick={onCancel}>Cancel</button>
       </div>
     </div>
