@@ -344,7 +344,7 @@ export default function Assets() {
   };
 
   const getQRData = (asset) => {
-    return `http://localhost:4000/assets/view/${asset.assetId}`;
+    return `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace("/api","") : "https://taifatech.org"}/assets/view/${asset.assetId}`;
   };
 
   if (loading) return <p style={{ padding: 20 }}>Loading assets...</p>;

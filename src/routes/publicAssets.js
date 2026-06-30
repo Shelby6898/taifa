@@ -36,6 +36,8 @@ router.get("/:id", async (req, res) => {
           .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; }
           .active { background: #dcfce7; color: #166534; }
           .deleted { background: #fee2e2; color: #991b1b; }
+          .maintenance { background: #fef3c7; color: #92400e; }
+          .unassigned { background: #f1f5f9; color: #475569; }
           .card { background: white; border-radius: 12px; padding: 20px; margin: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
           .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
           .row:last-child { border-bottom: none; }
@@ -55,13 +57,13 @@ router.get("/:id", async (req, res) => {
         <div class="card">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
             <span class="code">${a.assetCode || "N/A"}</span>
-            <span class="badge ${a.status === "deleted" ? "deleted" : "active"}">${a.status}</span>
+            <span class="badge ${a.status === "DISPOSED" ? "deleted" : a.status === "MAINTENANCE" ? "maintenance" : a.status === "ASSIGNED" ? "active" : "unassigned"}">${a.status}</span>
           </div>
           <div class="row"><span class="label">Type</span><span class="value">${a.type || "N/A"}</span></div>
           <div class="row"><span class="label">Department</span><span class="value">${a.department || "N/A"}</span></div>
           <div class="row"><span class="label">Ward</span><span class="value">${a.ward || "N/A"}</span></div>
           <div class="row"><span class="label">Value</span><span class="value">KES ${(a.value || 0).toLocaleString()}</span></div>
-          <div class="row"><span class="label">Assigned To</span><span class="value">${a.assignedTo || "Unassigned"}</span></div>
+          <div class="row"><span class="label">Custodian</span><span class="value">${a.custodian || "Unassigned"}</span></div>
           <div class="row"><span class="label">Location</span><span class="value">${a.location || "N/A"}</span></div>
           <div class="row"><span class="label">Acquired</span><span class="value">${acqDate}</span></div>
         </div>
