@@ -79,7 +79,7 @@ export default function Users() {
   };
 
   const handleDelete = async (id, email) => {
-    if (email === currentUser.email) {
+    if (id === currentUser.id) {
       setMessage("❌ You cannot delete your own account.");
       return;
     }
@@ -182,7 +182,7 @@ export default function Users() {
             </div>
             <div style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
               <button style={styles.editBtn} onClick={() => { setEditUser({ ...u }); setMessage(""); }}>Edit</button>
-              {u.email !== currentUser.email && (
+              {u.id !== currentUser.id && (
                 <>
                   <select
                     style={{ ...styles.input, padding: "6px 8px", fontSize: 12, width: "auto" }}
