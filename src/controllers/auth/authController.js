@@ -225,6 +225,11 @@ exports.updateUser = async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
+    // Prevent any user from changing their own role or department
+    if (id === req.user.userId && (role || department)) {
+      return res.status(400).json({ success: false, message: "You cannot change your own role or department. Ask another admin to make this change." });
+    }
+
     const newRole = role || oldData.role;
     const newDept = department || oldData.department;
     await docRef.update({

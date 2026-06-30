@@ -143,13 +143,21 @@ export default function Users() {
           <div style={styles.modal}>
             <h3 style={{ margin: 0 }}>Edit {editUser.name}</h3>
             <p style={{ margin: "4px 0 12px", color: "#6b7280", fontSize: 13 }}>{editUser.email}</p>
-            <select style={styles.input} value={editUser.role} onChange={e => setEditUser({ ...editUser, role: e.target.value })}>
-              {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-            </select>
-            <select style={styles.input} value={editUser.department || ""} onChange={e => setEditUser({ ...editUser, department: e.target.value })}>
-              <option value="">-- Department --</option>
-              {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
+            {editUser.id === currentUser.id ? (
+              <div style={{ background: "#fef3c7", border: "1px solid #fbbf24", borderRadius: 6, padding: 10, fontSize: 13, color: "#92400e", marginBottom: 10 }}>
+                ⚠️ You cannot change your own role or department. Ask another admin to make this change if needed.
+              </div>
+            ) : (
+              <>
+                <select style={styles.input} value={editUser.role} onChange={e => setEditUser({ ...editUser, role: e.target.value })}>
+                  {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+                <select style={styles.input} value={editUser.department || ""} onChange={e => setEditUser({ ...editUser, department: e.target.value })}>
+                  <option value="">-- Department --</option>
+                  {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </>
+            )}
             <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
               <button style={styles.btn} onClick={handleUpdate} disabled={submitting}>{submitting ? "Saving..." : "Save Changes"}</button>
               <button style={styles.cancelBtn} onClick={() => setEditUser(null)}>Cancel</button>
