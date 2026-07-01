@@ -12,7 +12,7 @@ router.post("/register", authenticate, authorizeWrite("admin"), register);
 router.post("/login", login);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
-router.get("/users", authenticate, authorizeRoles("admin", "super-admin"), getUsers);
+router.get("/users", authenticate, authorizeRoles("admin", "manager", "super-admin"), getUsers);
 router.put("/users/:id", authenticate, authorizeWrite("admin"), updateUser);
 router.delete("/users/:id", authenticate, authorizeWrite("admin"), deleteUser);
 router.get("/profile", authenticate, getProfile);

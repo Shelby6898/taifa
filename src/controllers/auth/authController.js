@@ -204,6 +204,11 @@ exports.getUsers = async (req, res) => {
       users = users.filter(u => u.orgId === req.user.orgId);
     }
 
+    // Managers only see users in their own department
+    if (req.user.role === "manager" && req.user.department) {
+      users = users.filter(u => u.department === req.user.department);
+    }
+
     res.json({ success: true, count: users.length, data: users });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
