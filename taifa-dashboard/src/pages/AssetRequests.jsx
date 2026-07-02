@@ -133,13 +133,15 @@ export default function AssetRequests() {
           <h2 style={{ margin: 0 }}>📋 Asset Requests</h2>
           {pendingCount > 0 && !isViewer && (
             <p style={{ margin: "4px 0 0", fontSize: 13, color: "#f59e0b", fontWeight: 600 }}>
-              ⚠️ {pendingCount} pending request{pendingCount > 1 ? "s" : ""} awaiting your action
+              ⚠️ {pendingCount} pending request{pendingCount > 1 ? "s" : ""} awaiting your action{isAdmin ? " (including manager requests)" : ""}
             </p>
           )}
         </div>
-        <button style={styles.btn} onClick={() => { setShowForm(!showForm); setMessage(""); }}>
-          {showForm ? "Cancel" : "+ New Request"}
-        </button>
+        {(isViewer || isManager) && (
+          <button style={styles.btn} onClick={() => { setShowForm(!showForm); setMessage(""); }}>
+            {showForm ? "Cancel" : isManager ? "+ Request from Admin" : "+ New Request"}
+          </button>
+        )}
       </div>
 
       {message && <p style={{ marginTop: 10, color: message.startsWith("✅") ? "green" : "#dc2626" }}>{message}</p>}
@@ -198,7 +200,7 @@ export default function AssetRequests() {
             </p>
             {isViewer && (
               <p style={{ margin: "8px 0 0", fontSize: 13, color: "#9ca3af" }}>
-                Click "+ New Request" to request an asset from your manager.
+                {isViewer ? 'Click "+ New Request" to request an asset from your manager.' : isManager ? 'Click "+ Request from Admin" to request an asset for your department.' : ''}
               </p>
             )}
           </div>
