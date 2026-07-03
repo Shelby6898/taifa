@@ -211,44 +211,12 @@ exports.getAssetHistory = async (req, res) => {
 };
 
 exports.deleteAsset = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const docRef = db.collection("assets").doc(id);
-    const doc = await docRef.get();
-    if (!doc.exists) return res.status(404).json({ success: false, message: "Asset not found" });
-
-    const oldData = doc.data();
-
-    if (!sameOrg(oldData, req)) {
-      return res.status(404).json({ success: false, message: "Asset not found" });
-    }
-
-    const updateData = { status: "DISPOSED", disposedAt: admin.firestore.Timestamp.now(), updatedAt: admin.firestore.Timestamp.now() };
-    await docRef.update(updateData);
-    await db.collection("asset_audit").add({
-      assetId: id, action: "deleted",
-      changedBy: req.user.userId || "system",
-      orgId: oldData.orgId,
-      reason: (req.body && req.body.reason) || "soft delete",
-      oldData, newData: { ...oldData, ...updateData },
-      timestamp: admin.firestore.Timestamp.now()
-    });
-
-    await createNotification({
-      type: "alert",
-      title: "Asset Deleted",
-      message: `Asset "${oldData.name}" has been deleted from ${oldData.department} department`,
-      department: oldData.department,
-      orgId: oldData.orgId,
-      assetId: id,
-      assetName: oldData.name,
-      triggeredBy: req.user.name || "Admin"
-    });
-
-    res.status(200).json({ success: true, message: "Asset deleted successfully", assetId: id });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+  // Direct deletion is disabled. All asset removals must go through
+  // the formal Dispose process at POST /api/disposals/:id/dispose
+  return res.status(405).json({
+    success: false,
+    message: "Direct deletion is not permitted. Please use the formal Disposal process (POST /api/disposals/:id/dispose) with a valid disposal method and reason."
+  });
 };
 
 exports.restoreAsset = async (req, res) => {

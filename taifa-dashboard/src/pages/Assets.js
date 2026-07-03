@@ -544,9 +544,6 @@ export default function Assets() {
               {(isAdmin || isManager) && asset.custodian && asset.status !== "DISPOSED" && (
                 <button style={styles.reallocateBtn} onClick={() => setReallocateModal(asset)}>🔁 Reallocate</button>
               )}
-              {isAdmin && asset.status !== "DISPOSED" && (
-                <button style={styles.deleteBtn} onClick={() => handleDelete(asset)}>Delete</button>
-              )}
             </div>
           </div>
         ))}
