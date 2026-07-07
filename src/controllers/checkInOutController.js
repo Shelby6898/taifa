@@ -24,7 +24,7 @@ exports.checkOut = async (req, res) => {
       return res.status(400).json({ success: false, message: "Cannot check out a disposed asset" });
     }
 
-    if (asset.status === "MAINTENANCE") {
+    if (asset.status?.toLowerCase() === "maintenance") {
       return res.status(400).json({ success: false, message: "Cannot check out an asset under maintenance" });
     }
 

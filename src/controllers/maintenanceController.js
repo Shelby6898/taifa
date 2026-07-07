@@ -1,6 +1,7 @@
 const { db, admin } = require("../config/firebase");
 const { createNotification } = require("./notificationController");
 const { sendEmail } = require("../services/email");
+const cache = require("../utils/cache");
 
 // GET all maintenance records
 exports.getMaintenanceRecords = async (req, res) => {
@@ -159,6 +160,7 @@ exports.createMaintenanceRecord = async (req, res) => {
       timestamp: admin.firestore.Timestamp.now()
     });
 
+    cache.delPrefix(`summary:${assetData.orgId}`);
     res.status(201).json({ success: true, id: docRef.id, message: "Maintenance record created" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -219,6 +221,7 @@ exports.updateMaintenanceRecord = async (req, res) => {
       timestamp: admin.firestore.Timestamp.now()
     });
 
+    cache.delPrefix(`summary:${doc.data().orgId}`);
     res.json({ success: true, message: "Maintenance record updated" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -258,6 +261,7 @@ exports.deleteMaintenanceRecord = async (req, res) => {
       timestamp: admin.firestore.Timestamp.now()
     });
 
+    cache.delPrefix(`summary:${doc.data().orgId}`);
     res.json({ success: true, message: "Maintenance record deleted" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

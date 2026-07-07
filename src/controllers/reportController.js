@@ -30,7 +30,7 @@ exports.getSummaryReport = async (req, res) => {
     const unassigned = assets.filter(a => a.status === "UNASSIGNED").length;
     const newAssets = assets.filter(a => a.status === "NEW").length;
     const disposed = assets.filter(a => a.status === "DISPOSED").length;
-    const maintenance = assets.filter(a => a.status === "MAINTENANCE").length;
+    const maintenance = assets.filter(a => a.status?.toLowerCase() === "maintenance").length;
     const checkedOut = assets.filter(a => a.checkedOut === true).length;
     const flaggedMissing = assets.filter(a => a.flaggedMissing === true).length;
     const totalCurrentValue = assets.reduce((sum, a) => sum + (a.currentValue || a.value || 0), 0);

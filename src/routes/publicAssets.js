@@ -57,7 +57,7 @@ router.get("/:id", async (req, res) => {
         <div class="card">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
             <span class="code">${a.assetCode || "N/A"}</span>
-            <span class="badge ${a.status === "DISPOSED" ? "deleted" : a.status === "MAINTENANCE" ? "maintenance" : a.status === "ASSIGNED" ? "active" : "unassigned"}">${a.status}</span>
+            <span class="badge ${a.status === "DISPOSED" ? "deleted" : a.status?.toLowerCase() === "maintenance" ? "maintenance" : a.status === "ASSIGNED" ? "active" : "unassigned"}">${a.status}</span>
           </div>
           <div class="row"><span class="label">Type</span><span class="value">${a.type || "N/A"}</span></div>
           <div class="row"><span class="label">Department</span><span class="value">${a.department || "N/A"}</span></div>

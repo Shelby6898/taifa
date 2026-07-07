@@ -1,4 +1,5 @@
 const { db, admin } = require("../config/firebase");
+const cache = require("../utils/cache");
 
 // Assign a custodian to an asset — closes previous custody record, opens new one
 exports.assignCustodian = async (req, res) => {
@@ -73,6 +74,7 @@ exports.assignCustodian = async (req, res) => {
       timestamp: now
     });
 
+    cache.delPrefix(`summary:${asset.orgId}`);
     res.status(200).json({ success: true, message: `${custodianName} assigned as custodian`, custodyId: newCustodyRef.id });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -128,6 +130,7 @@ exports.releaseCustodian = async (req, res) => {
       timestamp: now
     });
 
+    cache.delPrefix(`summary:${asset.orgId}`);
     res.status(200).json({ success: true, message: "Custodian released, asset is now UNASSIGNED" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -243,6 +246,7 @@ exports.reallocateCustodian = async (req, res) => {
       timestamp: now
     });
 
+    cache.delPrefix(`summary:${asset.orgId}`);
     res.status(200).json({
       success: true,
       message: `Asset reallocated from ${previousCustodian} to ${newCustodianName}`,
@@ -302,6 +306,7 @@ exports.deactivateAsset = async (req, res) => {
       timestamp: now
     });
 
+    cache.delPrefix(`summary:${asset.orgId}`);
     res.status(200).json({ success: true, message: `Asset "${asset.name}" deactivated` });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -349,6 +354,7 @@ exports.activateAsset = async (req, res) => {
       timestamp: now
     });
 
+    cache.delPrefix(`summary:${asset.orgId}`);
     res.status(200).json({ success: true, message: `Asset "${asset.name}" reactivated`, status: restoredStatus });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

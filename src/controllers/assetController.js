@@ -1,6 +1,7 @@
 const { db, admin } = require("../config/firebase");
 const { createNotification } = require("./notificationController");
 const generateAssetCode = require("../services/assetCodeGenerator");
+const cache = require("../utils/cache");
 
 function sameOrg(data, req) {
   return req.user.role === "super-admin" || data.orgId === req.user.orgId;
@@ -121,6 +122,7 @@ exports.createAsset = async (req, res) => {
       triggeredBy: req.user.name || "Admin"
     });
 
+    cache.delPrefix(`summary:${req.user.orgId}`);
     res.status(201).json({ success: true, assetId: docRef.id, assetCode: assetData.assetCode, message: "Asset created successfully" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -146,6 +148,23 @@ exports.updateAsset = async (req, res) => {
 
     const updateData = { ...req.body, updatedAt: admin.firestore.Timestamp.now() };
     delete updateData.orgId;
+
+    if (updateData.status) {
+      const newStatus = String(updateData.status).toLowerCase();
+      const oldStatus = String(oldData.status || "").toLowerCase();
+      if (newStatus === "maintenance" && oldStatus !== "maintenance") {
+        return res.status(400).json({
+          success: false,
+          message: "Use the Maintenance module to schedule maintenance for this asset"
+        });
+      }
+      if (oldStatus === "maintenance" && newStatus !== "maintenance") {
+        return res.status(400).json({
+          success: false,
+          message: "Complete or delete the active maintenance record to change this asset's status"
+        });
+      }
+    }
     await docRef.update(updateData);
     await db.collection("asset_audit").add({
       assetId: id, action: "updated",
@@ -155,6 +174,7 @@ exports.updateAsset = async (req, res) => {
       timestamp: admin.firestore.Timestamp.now()
     });
 
+    cache.delPrefix(`summary:${oldData.orgId}`);
     res.status(200).json({ success: true, message: "Asset updated successfully", assetId: id });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -190,6 +210,7 @@ exports.transferAsset = async (req, res) => {
       timestamp: admin.firestore.Timestamp.now()
     });
 
+    cache.delPrefix(`summary:${oldData.orgId}`);
     res.status(200).json({ success: true, message: "Asset transferred successfully", assetId: id, from: { ward: oldData.ward, department: oldData.department }, to: { ward: updateData.ward, department: updateData.department } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -242,6 +263,7 @@ exports.restoreAsset = async (req, res) => {
       timestamp: admin.firestore.Timestamp.now()
     });
 
+    cache.delPrefix(`summary:${oldData.orgId}`);
     res.status(200).json({ success: true, message: "Asset restored successfully", assetId: id });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
