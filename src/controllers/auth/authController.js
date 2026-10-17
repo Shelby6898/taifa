@@ -5,8 +5,7 @@ const { db, admin } = require("../../config/firebase");
 const crypto = require("crypto");
 const { sendEmail } = require("../../services/email");
 
-const JWT_SECRET =
-  process.env.JWT_SECRET || "secret_key";
+const { JWT_SECRET } = require("../../config/jwt");
 
 /*
 |--------------------------------------------------------------------------
