@@ -69,6 +69,7 @@ const fakeFirebase = {
                   record.data[filter.field] === filter.value
                 ))
                 .map(record => ({
+                  id: record.ref.id,
                   ref: record.ref,
                   data: () => record.data
                 }));
@@ -193,6 +194,8 @@ function assertNoWrites() {
 
 async function main() {
   let assignCustodian;
+  let releaseCustodian;
+  let getCustodyLog;
   let reallocateCustodian;
   let checkOut;
 
@@ -215,8 +218,12 @@ async function main() {
     delete require.cache[custodyPath];
     delete require.cache[checkoutPath];
 
-    ({ assignCustodian, reallocateCustodian } =
-      require(custodyPath));
+    ({
+      assignCustodian,
+      releaseCustodian,
+      getCustodyLog,
+      reallocateCustodian
+    } = require(custodyPath));
     ({ checkOut } = require(checkoutPath));
 
     const cases = [
@@ -387,7 +394,69 @@ async function main() {
     console.log(`PASS: ${test.name} preserves foreign-org custody record`);
   }
 
-  console.log("\\n8/8 controller regression tests passed.");
+  reset({
+  orgId: "org-1",
+  status: "ASSIGNED",
+  custodian: "Jane Wanjiku",
+  custodianId: "same-org"
+});
+
+const releaseSameOrg = addCustodyRecord({
+  assetId: "asset-1",
+  orgId: "org-1",
+  endDate: null
+});
+
+const releaseForeignOrg = addCustodyRecord({
+  assetId: "asset-1",
+  orgId: "org-2",
+  endDate: null
+});
+
+const releaseRes = await invoke(releaseCustodian);
+
+assert.equal(releaseRes.statusCode, 200, "release should succeed");
+assert.notEqual(
+  releaseSameOrg.data.endDate,
+  null,
+  "release should close same-org custody"
+);
+assert.equal(
+  releaseForeignOrg.data.endDate,
+  null,
+  "release must not close foreign-org custody"
+);
+
+console.log("PASS: release preserves foreign-org custody record");
+
+reset({ orgId: "org-1", status: "ASSIGNED" });
+
+const historySameOrg = addCustodyRecord({
+  assetId: "asset-1",
+  orgId: "org-1",
+  startDate: { _seconds: 2 },
+  endDate: null,
+  custodianName: "Jane Wanjiku"
+});
+
+addCustodyRecord({
+  assetId: "asset-1",
+  orgId: "org-2",
+  startDate: { _seconds: 1 },
+  endDate: null,
+  custodianName: "John Kamau"
+});
+
+const historyRes = await invoke(getCustodyLog);
+
+assert.equal(historyRes.statusCode, 200, "history request should succeed");
+assert.equal(historyRes.body.count, 1, "history must exclude foreign-org custody records");
+assert.equal(historyRes.body.data[0].id, historySameOrg.ref.id);
+assert.equal(historyRes.body.data[0].orgId, "org-1");
+
+console.log("PASS: custody history excludes foreign-org records");
+
+console.log("\\n10/10 controller regression tests passed.");
   } finally {
     Module._load = originalLoad;
   }

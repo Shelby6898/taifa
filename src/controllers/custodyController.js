@@ -107,6 +107,7 @@ exports.releaseCustodian = async (req, res) => {
     // Close open custody record
     const openCustody = await db.collection("asset_custody_logs")
       .where("assetId", "==", id)
+      .where("orgId", "==", asset.orgId)
       .where("endDate", "==", null)
       .get();
 
@@ -159,6 +160,7 @@ exports.getCustodyLog = async (req, res) => {
 
     const snapshot = await db.collection("asset_custody_logs")
       .where("assetId", "==", id)
+      .where("orgId", "==", asset.orgId)
       .get();
 
     const logs = snapshot.docs
