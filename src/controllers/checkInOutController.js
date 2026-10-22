@@ -46,11 +46,15 @@ exports.checkOut = async (req, res) => {
     // Close any open custody record
     const openCustody = await db.collection("asset_custody_logs")
       .where("assetId", "==", id)
+      .where("orgId", "==", asset.orgId)
       .where("endDate", "==", null)
       .get();
 
     const batch = db.batch();
     openCustody.docs.forEach(doc => {
+      const custody = doc.data();
+      if (!custody || custody.orgId !== asset.orgId) return;
+
       batch.update(doc.ref, { endDate: now });
     });
 
