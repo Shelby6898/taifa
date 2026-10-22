@@ -142,6 +142,9 @@ exports.checkIn = async (req, res) => {
 
     const batch = db.batch();
     openCustody.docs.forEach(doc => {
+      const custody = doc.data();
+      if (!custody || custody.orgId !== asset.orgId) return;
+
       batch.update(doc.ref, {
         endDate: now,
         returnCondition: condition || null,
