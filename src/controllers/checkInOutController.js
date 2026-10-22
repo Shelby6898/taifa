@@ -1,5 +1,6 @@
 const { db, admin } = require("../config/firebase");
 const { createNotification } = require("./notificationController");
+const validateCustodian = require("../utils/validateCustodian");
 
 // Check out an asset to a user
 exports.checkOut = async (req, res) => {
@@ -18,6 +19,11 @@ exports.checkOut = async (req, res) => {
     const asset = assetDoc.data();
     if (asset.orgId !== req.user.orgId && req.user.role !== "super-admin") {
       return res.status(404).json({ success: false, message: "Asset not found" });
+    }
+
+    const validation = await validateCustodian(db, asset, custodianId, custodianName);
+    if (!validation.ok) {
+      return res.status(400).json({ success: false, message: validation.message });
     }
 
     if (asset.status === "DISPOSED") {
