@@ -203,8 +203,19 @@ exports.getUsers = async (req, res) => {
       users = users.filter(u => u.orgId === req.user.orgId);
     }
 
-    // Managers only see users in their own department
-    if (req.user.role === "manager" && req.user.department) {
+    // Managers must have a department to list users.
+    // Fail closed rather than exposing every user in the organization.
+    if (req.user.role === "manager") {
+      if (
+        typeof req.user.department !== "string" ||
+        !req.user.department.trim()
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: "Manager department is required",
+        });
+      }
+
       users = users.filter(u => u.department === req.user.department);
     }
 
