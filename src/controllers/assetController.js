@@ -220,6 +220,16 @@ exports.transferAsset = async (req, res) => {
 exports.getAssetHistory = async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Verify asset existence and tenant ownership before reading its history.
+    const assetDoc = await db.collection("assets").doc(id).get();
+    if (!assetDoc.exists || !sameOrg(assetDoc.data(), req)) {
+      return res.status(404).json({
+        success: false,
+        message: "Asset not found"
+      });
+    }
+
     const snapshot = await db.collection("asset_audit").where("assetId", "==", id).get();
     const history = snapshot.docs
       .map(doc => ({ id: doc.id, ...doc.data() }))
@@ -243,30 +253,77 @@ exports.deleteAsset = async (req, res) => {
 exports.restoreAsset = async (req, res) => {
   try {
     const { id } = req.params;
-    const docRef = db.collection("assets").doc(id);
-    const doc = await docRef.get();
-    if (!doc.exists) return res.status(404).json({ success: false, message: "Asset not found" });
+    const assetRef = db.collection("assets").doc(id);
+    const auditRef = db.collection("asset_audit").doc();
+    const now = admin.firestore.Timestamp.now();
 
-    const oldData = doc.data();
+    // Read, validate, update, and audit within one transaction.
+    const result = await db.runTransaction(async (transaction) => {
+      const doc = await transaction.get(assetRef);
 
-    if (!sameOrg(oldData, req)) {
-      return res.status(404).json({ success: false, message: "Asset not found" });
-    }
-    if (oldData.status === "DISPOSED") return res.status(400).json({ success: false, message: "Asset is already disposed and cannot be restored" });
-    const updateData = { status: "UNASSIGNED",
-      previousStatus: oldData.status, statusReason: null, updatedAt: admin.firestore.Timestamp.now() };
-    await db.collection("asset_audit").add({
-      assetId: id, action: "restored",
-      changedBy: req.user.userId || "system",
-      orgId: oldData.orgId,
-      oldData, newData: { ...oldData, ...updateData },
-      timestamp: admin.firestore.Timestamp.now()
+      if (!doc.exists) {
+        return { error: "not-found" };
+      }
+
+      const oldData = doc.data();
+
+      if (!sameOrg(oldData, req)) {
+        return { error: "not-found" };
+      }
+
+      if (oldData.status === "DISPOSED") {
+        return { error: "disposed" };
+      }
+
+      const updateData = {
+        status: "UNASSIGNED",
+        previousStatus: oldData.status,
+        statusReason: null,
+        updatedAt: now
+      };
+
+      transaction.update(assetRef, updateData);
+      transaction.set(auditRef, {
+        assetId: id,
+        action: "restored",
+        changedBy: req.user.userId || "system",
+        orgId: oldData.orgId,
+        oldData,
+        newData: { ...oldData, ...updateData },
+        timestamp: now
+      });
+
+      return { orgId: oldData.orgId };
     });
 
-    cache.delPrefix(`summary:${oldData.orgId}`);
-    res.status(200).json({ success: true, message: "Asset restored successfully", assetId: id });
+    if (result.error === "not-found") {
+      return res.status(404).json({
+        success: false,
+        message: "Asset not found"
+      });
+    }
+
+    if (result.error === "disposed") {
+      return res.status(400).json({
+        success: false,
+        message: "Asset is already disposed and cannot be restored"
+      });
+    }
+
+    // Invalidate summaries only after the transaction succeeds.
+    cache.delPrefix(`summary:${result.orgId}`);
+    cache.delPrefix("summary:super-admin");
+
+    return res.status(200).json({
+      success: true,
+      message: "Asset restored successfully",
+      assetId: id
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
 
@@ -452,6 +509,7 @@ exports.bulkImportTemplate = async (req, res) => {
 |--------------------------------------------------------------------------
 */
 exports.bulkImportAssets = async (req, res) => {
+  let committedCount = 0;
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: "No file uploaded" });
@@ -528,6 +586,9 @@ exports.bulkImportAssets = async (req, res) => {
 
       if (opCount >= 400) {
         await batch.commit();
+        committedCount += opCount;
+        cache.delPrefix(`summary:${req.user.orgId}`);
+        cache.delPrefix("summary:super-admin");
         batch = db.batch();
         opCount = 0;
       }
@@ -535,6 +596,9 @@ exports.bulkImportAssets = async (req, res) => {
 
     if (opCount > 0) {
       await batch.commit();
+      committedCount += opCount;
+      cache.delPrefix(`summary:${req.user.orgId}`);
+      cache.delPrefix("summary:super-admin");
     }
 
     if (results.imported > 0) {
@@ -565,6 +629,11 @@ exports.bulkImportAssets = async (req, res) => {
     });
   } catch (err) {
     console.error("Bulk import error:", err);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({
+      success: false,
+      message: "Bulk import did not complete. Check assetsCommitted before retrying.",
+      assetsCommitted: committedCount,
+      workflowCompleted: false
+    });
   }
 };

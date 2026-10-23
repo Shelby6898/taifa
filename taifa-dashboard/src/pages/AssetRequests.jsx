@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import useOrg from "../hooks/useOrg";
-
 const URGENCY_LEVELS = ["LOW", "NORMAL", "HIGH", "URGENT"];
 const URGENCY_COLORS = { LOW: "#6b7280", NORMAL: "#2563eb", HIGH: "#f59e0b", URGENT: "#dc2626" };
 const STATUS_COLORS = { PENDING: "#f59e0b", APPROVED: "#16a34a", REJECTED: "#dc2626" };
@@ -13,7 +11,6 @@ const ICT_TYPES = [
 ];
 
 export default function AssetRequests() {
-  const { org } = useOrg();
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const isViewer = user.role === "viewer";
   const isManager = user.role === "manager";

@@ -39,6 +39,10 @@ const fakeFirebase = {
               exists: Boolean(assetData),
               data: () => assetData
             });
+            ref.update = async updates => {
+              if (!assetData) throw new Error("Asset missing during update");
+              Object.assign(assetData, updates);
+            };
           }
 
           if (name === "users") {
@@ -197,6 +201,8 @@ async function main() {
   let releaseCustodian;
   let getCustodyLog;
   let reallocateCustodian;
+  let deactivateAsset;
+  let activateAsset;
   let checkOut;
 
   Module._load = function (request, parent, isMain) {
@@ -222,7 +228,9 @@ async function main() {
       assignCustodian,
       releaseCustodian,
       getCustodyLog,
-      reallocateCustodian
+      reallocateCustodian,
+      deactivateAsset,
+      activateAsset
     } = require(custodyPath));
     ({ checkOut } = require(checkoutPath));
 
@@ -338,7 +346,7 @@ async function main() {
       if (test.name === "checkout") {
         assert.equal(notificationCalls, 1);
       } else {
-        assert.deepEqual(cacheInvalidations, ["summary:org-1"]);
+        assert.deepEqual(cacheInvalidations, ["summary:org-1", "summary:super-admin"]);
       }
 
       console.log(`PASS: ${test.name} accepts same-org custodian`);
@@ -426,8 +434,50 @@ assert.equal(
   null,
   "release must not close foreign-org custody"
 );
+assert.deepEqual(
+  cacheInvalidations,
+  ["summary:org-1", "summary:super-admin"],
+  "release must invalidate both summary caches"
+);
 
-console.log("PASS: release preserves foreign-org custody record");
+console.log("PASS: release preserves foreign-org custody record and invalidates both summaries");
+
+for (const test of [
+  {
+    name: "deactivation",
+    handler: deactivateAsset,
+    asset: { orgId: "org-1", status: "ASSIGNED", name: "Test Asset" },
+    body: { reason: "Scheduled maintenance" },
+    expectedStatus: "DEACTIVATED"
+  },
+  {
+    name: "activation",
+    handler: activateAsset,
+    asset: {
+      orgId: "org-1",
+      status: "DEACTIVATED",
+      previousStatus: "ASSIGNED",
+      name: "Test Asset"
+    },
+    body: {},
+    expectedStatus: "ASSIGNED"
+  }
+]) {
+  reset(test.asset);
+  const res = await invoke(test.handler, test.body);
+
+  assert.equal(res.statusCode, 200, test.name + ": expected HTTP 200");
+  assert.equal(res.body.success, true);
+  assert.equal(assetData.status, test.expectedStatus);
+  assert.equal(auditWrites, 1, test.name + ": expected one audit write");
+  assert.deepEqual(
+    cacheInvalidations,
+    ["summary:org-1", "summary:super-admin"],
+    test.name + ": must invalidate both summary caches"
+  );
+
+  console.log("PASS: " + test.name + " invalidates both summary caches");
+}
 
 reset({ orgId: "org-1", status: "ASSIGNED" });
 
@@ -456,7 +506,7 @@ assert.equal(historyRes.body.data[0].orgId, "org-1");
 
 console.log("PASS: custody history excludes foreign-org records");
 
-console.log("\\n10/10 controller regression tests passed.");
+console.log("\\n12/12 controller regression tests passed.");
   } finally {
     Module._load = originalLoad;
   }

@@ -5,3 +5,6 @@ ict-ticketing-system/
 
 
 .env.production
+
+.env.*
+!.env.example

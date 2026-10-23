@@ -2,172 +2,158 @@ const assert = require("node:assert/strict");
 const Module = require("node:module");
 
 const originalLoad = Module._load;
-const originalDateNow = Date.now;
-let routeHandler;
-let assetData;
-
-const fakeExpress = {
-  Router() {
-    return {
-      get(path, handler) {
-        if (path === "/:id") routeHandler = handler;
-      }
-    };
-  }
-};
+let documentData;
+let documentExists = true;
+let databaseError = null;
+const headers = {};
 
 const fakeDb = {
-  collection() {
+  collection(name) {
+    assert.equal(name, "assets");
     return {
-      doc() {
+      doc(id) {
         return {
-          get: async () => ({
-            id: "test-asset",
-            exists: true,
-            data: () => assetData
-          })
+          async get() {
+            if (databaseError) throw databaseError;
+            return {
+              id,
+              exists: documentExists,
+              data: () => documentData
+            };
+          }
         };
       }
     };
   }
 };
 
-async function renderAsset(data) {
-  assetData = data;
-  let html = "";
-  let statusCode = 200;
-  const headers = {};
+Module._load = function (request, parent, isMain) {
+  if (
+    request === "../config/firebase" &&
+    parent &&
+    parent.filename.endsWith("/src/routes/publicAssets.js")
+  ) {
+    return { db: fakeDb };
+  }
+  return originalLoad.call(this, request, parent, isMain);
+};
 
-  const res = {
+let handler;
+
+try {
+  const router = require("./src/routes/publicAssets");
+  const layer = router.stack.find(
+    (item) => item.route && item.route.path === "/:id"
+  );
+  assert.ok(layer, "public asset route must exist");
+  handler = layer.route.stack[0].handle;
+} finally {
+  Module._load = originalLoad;
+}
+
+function makeResponse() {
+  return {
+    statusCode: 200,
+    body: "",
+    headers: {},
     set(values) {
-      Object.assign(headers, values);
+      Object.assign(this.headers, values);
       return this;
     },
     status(code) {
-      statusCode = code;
+      this.statusCode = code;
       return this;
     },
     send(body) {
-      html = body;
+      this.body = body;
       return this;
     }
   };
-
-  await routeHandler({ params: { id: "test-asset" } }, res);
-  return { html, statusCode, headers };
 }
 
-async function main() {
-  Module._load = function (request, parent, isMain) {
-    if (request === "express") return fakeExpress;
-    if (request === "../config/firebase") return { db: fakeDb };
-    return originalLoad.call(this, request, parent, isMain);
-  };
+async function request() {
+  const res = makeResponse();
+  await handler({ params: { id: "asset-test-1" } }, res);
+  return res;
+}
 
-  delete require.cache[require.resolve("./src/routes/publicAssets")];
-  require("./src/routes/publicAssets");
-
-  assert.equal(typeof routeHandler, "function", "QR route registered");
-
-  const maliciousName = '<img src=x onerror="alert(1)">';
-  const maliciousType = "<script>alert(2)</script>";
-
-  const result = await renderAsset({
-    name: maliciousName,
-    assetCode: "TEST-001",
-    status: 'ASSIGNED"><script>alert(3)</script>',
-    type: maliciousType,
-    department: "Test Department",
-    ward: "Test Ward",
-    value: 987654321,
+async function run() {
+  documentExists = true;
+  databaseError = null;
+  documentData = {
+    name: '<script>alert("xss")</script>',
+    assetCode: 'A<&"1',
+    status: '<img src=x onerror=alert(1)>',
+    type: "Laptop & tablet",
+    department: "Revenue <Admin>",
+    ward: "Ward 'A'",
     custodian: "PRIVATE-CUSTODIAN-TEST",
     location: "PRIVATE-LOCATION-TEST",
-    acquisitionDate: { _seconds: 1736899200 }
-  });
-
-  assert.equal(result.statusCode, 200);
-
-  assert.equal(result.headers["X-Content-Type-Options"], "nosniff");
-  assert.equal(result.headers["X-Frame-Options"], "DENY");
-  assert.equal(result.headers["Referrer-Policy"], "no-referrer");
-  assert.equal(result.headers["Cache-Control"], "no-store");
-  assert.equal(
-    result.headers["Content-Security-Policy"],
-    "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
-  );
-
-  assert.ok(result.html.includes(
-    '&lt;img src=x onerror=&quot;alert(1)&quot;&gt;'
-  ));
-  assert.ok(result.html.includes(
-    "&lt;script&gt;alert(2)&lt;/script&gt;"
-  ));
-  assert.ok(result.html.includes('class="badge unassigned"'));
-  assert.ok(!result.html.includes(maliciousName));
-  assert.ok(!result.html.includes(maliciousType));
-  assert.ok(!result.html.includes("PRIVATE-CUSTODIAN-TEST"));
-  assert.ok(!result.html.includes("PRIVATE-LOCATION-TEST"));
-  assert.ok(!result.html.includes("987654321"));
-  console.log("PASS: HTML escaping, safe status, and privacy");
-
-  const noDate = await renderAsset({
-    name: "Date Test",
-    status: "ASSIGNED",
-    acquisitionDate: null
-  });
-  assert.ok(noDate.html.includes(">N/A</span>"));
-  console.log("PASS: missing acquisition date");
-
-  const invalidDate = await renderAsset({
-    name: "Date Test",
-    status: "ASSIGNED",
-    acquisitionDate: { _seconds: "invalid" }
-  });
-  assert.ok(invalidDate.html.includes(">N/A</span>"));
-  assert.ok(!invalidDate.html.includes("Invalid Date"));
-  console.log("PASS: malformed acquisition date");
-
-  const validDate = await renderAsset({
-    name: "Date Test",
-    status: "ASSIGNED",
-    acquisitionDate: { _seconds: 1736899200 }
-  });
-  assert.ok(!validDate.html.includes("Invalid Date"));
-  console.log("PASS: valid Firestore-style date");
-
-  const missingAsset = {
-    collection() {
-      return {
-        doc() {
-          return {
-            get: async () => ({ exists: false })
-          };
-        }
-      };
-    }
+    value: 987654321,
+    acquisitionDate: { _seconds: 1704067200 }
   };
 
-  const beforeMissingTest = fakeDb.collection;
-  fakeDb.collection = missingAsset.collection;
+  const res = await request();
 
-  try {
-    const missing = await renderAsset({});
-    assert.equal(missing.statusCode, 404);
-    assert.ok(missing.html.includes("Asset Not Found"));
-    console.log("PASS: missing asset returns 404");
-  } finally {
-    fakeDb.collection = beforeMissingTest;
+  assert.ok(!res.body.includes("PRIVATE-CUSTODIAN-TEST"));
+  assert.ok(!res.body.includes("PRIVATE-LOCATION-TEST"));
+  assert.ok(!res.body.includes("987654321"));
+  console.log("PASS: public QR response excludes private custodian, location and value");
+
+  assert.equal(res.statusCode, 200);
+  for (const [key, value] of Object.entries({
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+    "Cache-Control": "no-store",
+    "Content-Security-Policy":
+      "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+  })) {
+    assert.equal(res.headers[key], value, `header ${key}`);
   }
+  console.log("PASS: public asset response sets security headers");
 
-  console.log("All public QR regression tests passed.");
+  assert.ok(res.body.includes("&lt;script&gt;"));
+  assert.ok(!res.body.includes('<script>alert("xss")</script>'));
+  assert.ok(res.body.includes("A&lt;&amp;&quot;1"));
+  assert.ok(res.body.includes("Revenue &lt;Admin&gt;"));
+  assert.ok(res.body.includes("Ward &#39;A&#39;"));
+  console.log("PASS: database text is HTML-escaped");
+
+  assert.ok(res.body.includes('class="badge unassigned"'));
+  assert.ok(!res.body.includes('class="badge <img'));
+  console.log("PASS: unexpected status cannot inject a CSS class");
+
+  assert.ok(res.body.includes("01/01/2024"));
+  console.log("PASS: Firestore seconds timestamp is rendered as a date");
+
+  documentData = {
+    name: "Safe Asset",
+    status: "ASSIGNED",
+    acquisitionDate: { _seconds: "invalid" }
+  };
+  const safe = await request();
+  assert.ok(safe.body.includes('class="badge active"'));
+  assert.ok(safe.body.includes(">N/A</span>"));
+  console.log("PASS: valid status class and invalid date fallback");
+
+  documentExists = false;
+  const missing = await request();
+  assert.equal(missing.statusCode, 404);
+  assert.ok(missing.body.includes("Asset Not Found"));
+  console.log("PASS: missing asset returns 404");
+
+  documentExists = true;
+  databaseError = new Error("simulated database failure");
+  const failed = await request();
+  assert.equal(failed.statusCode, 500);
+  assert.ok(failed.body.includes("Error loading asset"));
+  console.log("PASS: database error returns generic response");
+
+  console.log("\nAll public asset security tests passed.");
 }
 
-main()
-  .catch((error) => {
-    console.error("FAIL:", error);
-    process.exitCode = 1;
-  })
-  .finally(() => {
-    Module._load = originalLoad;
-    Date.now = originalDateNow;
-  });
+run().catch((error) => {
+  console.error("FAIL:", error);
+  process.exitCode = 1;
+});

@@ -290,16 +290,6 @@ export default function Assets() {
     }
   };
 
-  const handleDelete = async (asset) => {
-    if (!window.confirm(`Delete "${asset.name}"?`)) return;
-    try {
-      await api.delete(`/assets/${asset.assetId}`);
-      setMessage("✅ Asset deleted.");
-      loadAssets();
-    } catch (err) {
-      setMessage("❌ " + (err.response?.data?.message || "Failed to delete"));
-    }
-  };
 
   // eslint-disable-next-line no-unused-vars
   const handleRestore = async (asset) => {

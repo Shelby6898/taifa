@@ -82,6 +82,7 @@ exports.assignCustodian = async (req, res) => {
     });
 
     cache.delPrefix(`summary:${asset.orgId}`);
+    cache.delPrefix("summary:super-admin");
     res.status(200).json({ success: true, message: `${custodianName} assigned as custodian`, custodyId: newCustodyRef.id });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -139,6 +140,7 @@ exports.releaseCustodian = async (req, res) => {
     });
 
     cache.delPrefix(`summary:${asset.orgId}`);
+    cache.delPrefix("summary:super-admin");
     res.status(200).json({ success: true, message: "Custodian released, asset is now UNASSIGNED" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -262,6 +264,7 @@ exports.reallocateCustodian = async (req, res) => {
     });
 
     cache.delPrefix(`summary:${asset.orgId}`);
+    cache.delPrefix("summary:super-admin");
     res.status(200).json({
       success: true,
       message: `Asset reallocated from ${previousCustodian} to ${newCustodianName}`,
@@ -322,6 +325,7 @@ exports.deactivateAsset = async (req, res) => {
     });
 
     cache.delPrefix(`summary:${asset.orgId}`);
+    cache.delPrefix("summary:super-admin");
     res.status(200).json({ success: true, message: `Asset "${asset.name}" deactivated` });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -370,6 +374,7 @@ exports.activateAsset = async (req, res) => {
     });
 
     cache.delPrefix(`summary:${asset.orgId}`);
+    cache.delPrefix("summary:super-admin");
     res.status(200).json({ success: true, message: `Asset "${asset.name}" reactivated`, status: restoredStatus });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

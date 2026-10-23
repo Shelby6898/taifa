@@ -7,6 +7,9 @@ const { sendEmail } = require("../../services/email");
 
 const { JWT_SECRET } = require("../../config/jwt");
 
+// Roles that organization admins may assign to tenant users.
+const TENANT_ASSIGNABLE_ROLES = new Set(["admin", "manager", "viewer"]);
+
 /*
 |--------------------------------------------------------------------------
 | REGISTER USER
@@ -24,7 +27,15 @@ exports.register = async (req, res) => {
       department
     } = req.body;
 
-    const existing =
+      const requestedRole = role || "viewer";
+      if (!TENANT_ASSIGNABLE_ROLES.has(requestedRole)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid role. Organization admins may assign admin, manager, or viewer."
+        });
+      }
+
+      const existing =
       await db.collection("users")
       .where("email", "==", email)
       .get();
@@ -43,7 +54,7 @@ exports.register = async (req, res) => {
       name,
       email,
       passwordHash,
-      role: role || "viewer",
+      role: requestedRole,
       department: department || null,
       orgId: req.user.role === "super-admin" ? (req.body.orgId || null) : req.user.orgId,
 
@@ -66,8 +77,8 @@ exports.register = async (req, res) => {
       orgId: user.orgId,
       action: "user_created",
       changedBy: req.user?.userId || "system",
-      note: "User " + name + " created with role: " + (role || "viewer"),
-      newData: { name, email, role: role || "viewer", department: department || null },
+      note: "User " + name + " created with role: " + requestedRole,
+      newData: { name, email, role: requestedRole, department: department || null },
       timestamp: admin.firestore.Timestamp.now()
     });
 
@@ -240,7 +251,14 @@ exports.updateUser = async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    // Prevent any user from changing their own role or department
+      if (role !== undefined && !TENANT_ASSIGNABLE_ROLES.has(role)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid role. Organization admins may assign admin, manager, or viewer."
+        });
+      }
+
+      // Prevent any user from changing their own role or department
     if (id === req.user.userId && (role || department)) {
       return res.status(400).json({ success: false, message: "You cannot change your own role or department. Ask another admin to make this change." });
     }

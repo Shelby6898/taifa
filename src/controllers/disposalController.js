@@ -1,4 +1,5 @@
 const { db, admin } = require("../config/firebase");
+const cache = require("../utils/cache");
 
 const DISPOSAL_METHODS = [
   "TRANSFER",
@@ -15,11 +16,21 @@ const DISPOSAL_METHODS = [
 // Dispose an asset — terminal action
 exports.disposeAsset = async (req, res) => {
   try {
+    // Only organization admins may dispose of assets.
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Only an organization admin can dispose of assets"
+      });
+    }
     const { id } = req.params;
     const { method, reason, proceedsAmount, approvedBy, notes } = req.body;
 
     if (!method || !reason) {
-      return res.status(400).json({ success: false, message: "method and reason are required" });
+      return res.status(400).json({
+        success: false,
+        message: "method and reason are required"
+      });
     }
 
     if (!DISPOSAL_METHODS.includes(method)) {
@@ -29,88 +40,162 @@ exports.disposeAsset = async (req, res) => {
       });
     }
 
+    // Validate proceeds before starting the Firestore transaction.
+    let proceeds = 0;
+
+    if (
+      proceedsAmount !== undefined &&
+      proceedsAmount !== null &&
+      proceedsAmount !== ""
+    ) {
+      if (
+        (typeof proceedsAmount !== "number" &&
+          typeof proceedsAmount !== "string") ||
+        (typeof proceedsAmount === "string" &&
+          proceedsAmount.trim() === "")
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "proceedsAmount must be a finite, non-negative number"
+        });
+      }
+
+      proceeds = Number(proceedsAmount);
+
+      if (!Number.isFinite(proceeds) || proceeds < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "proceedsAmount must be a finite, non-negative number"
+        });
+      }
+    }
+
     const assetRef = db.collection("assets").doc(id);
-    const assetDoc = await assetRef.get();
-    if (!assetDoc.exists) return res.status(404).json({ success: false, message: "Asset not found" });
-
-    const asset = assetDoc.data();
-    if (asset.orgId !== req.user.orgId && req.user.role !== "super-admin") {
-      return res.status(404).json({ success: false, message: "Asset not found" });
-    }
-
-    if (asset.status === "DISPOSED") {
-      return res.status(400).json({ success: false, message: "Asset is already disposed" });
-    }
-
+    const disposalRef = db.collection("asset_disposals").doc();
+    const auditRef = db.collection("asset_audit").doc();
     const now = admin.firestore.Timestamp.now();
 
-    // Close any open custody record
-    const openCustody = await db.collection("asset_custody_logs")
-      .where("assetId", "==", id)
-      .where("endDate", "==", null)
-      .get();
+    const result = await db.runTransaction(async (transaction) => {
+      // All reads must happen before any transaction writes.
+      const assetDoc = await transaction.get(assetRef);
 
-    const batch = db.batch();
-    openCustody.docs.forEach(doc => {
-      batch.update(doc.ref, { endDate: now });
+      if (!assetDoc.exists) {
+        return { error: "not-found" };
+      }
+
+      const asset = assetDoc.data();
+
+      if (asset.orgId !== req.user.orgId) {
+        return { error: "not-found" };
+      }
+
+      if (asset.status === "DISPOSED") {
+        return { error: "already-disposed" };
+      }
+
+      const custodyQuery = db.collection("asset_custody_logs")
+        .where("assetId", "==", id)
+        .where("orgId", "==", asset.orgId)
+        .where("endDate", "==", null);
+
+      const openCustody = await transaction.get(custodyQuery);
+
+      // All writes, including the audit event, commit atomically.
+      openCustody.docs.forEach((custodyDoc) => {
+        const custody = custodyDoc.data();
+        if (!custody || custody.orgId !== asset.orgId) return;
+
+        transaction.update(custodyDoc.ref, { endDate: now });
+      });
+
+      const valueAtDisposal = asset.currentValue || asset.value || 0;
+
+      transaction.set(disposalRef, {
+        assetId: id,
+        assetCode: asset.assetCode || null,
+        assetName: asset.name,
+        orgId: asset.orgId,
+        method,
+        reason,
+        notes: notes || null,
+        proceedsAmount: proceeds,
+        approvedBy: approvedBy || null,
+        disposedBy: req.user.userId || "system",
+        disposedByName: req.user.name || "System",
+        previousStatus: asset.status,
+        valueAtDisposal,
+        disposedAt: now,
+        createdAt: now
+      });
+
+      transaction.update(assetRef, {
+        status: "DISPOSED",
+        previousStatus: asset.status,
+        custodian: null,
+        custodianId: null,
+        disposedAt: now,
+        disposalMethod: method,
+        disposalReason: reason,
+        updatedAt: now
+      });
+
+      transaction.set(auditRef, {
+        assetId: id,
+        action: "disposed",
+        changedBy: req.user.userId || "system",
+        orgId: asset.orgId,
+        message: `Asset disposed via ${method}: ${reason}`,
+        oldData: {
+          status: asset.status,
+          custodian: asset.custodian || null
+        },
+        newData: {
+          status: "DISPOSED",
+          method,
+          reason
+        },
+        timestamp: now
+      });
+
+      return {
+        assetName: asset.name,
+        valueAtDisposal,
+        proceedsAmount: proceeds,
+        orgId: asset.orgId
+      };
     });
 
-    // Write disposal record
-    const disposalRef = db.collection("asset_disposals").doc();
-    batch.set(disposalRef, {
-      assetId: id,
-      assetCode: asset.assetCode || null,
-      assetName: asset.name,
-      orgId: asset.orgId,
-      method,
-      reason,
-      notes: notes || null,
-      proceedsAmount: proceedsAmount ? Number(proceedsAmount) : 0,
-      approvedBy: approvedBy || null,
-      disposedBy: req.user.userId || "system",
-      disposedByName: req.user.name || "System",
-      previousStatus: asset.status,
-      valueAtDisposal: asset.currentValue || asset.value || 0,
-      disposedAt: now,
-      createdAt: now
-    });
+    if (result.error === "not-found") {
+      return res.status(404).json({
+        success: false,
+        message: "Asset not found"
+      });
+    }
 
-    // Update asset to DISPOSED — terminal
-    batch.update(assetRef, {
-      status: "DISPOSED",
-      previousStatus: asset.status,
-      custodian: null,
-      custodianId: null,
-      disposedAt: now,
-      disposalMethod: method,
-      disposalReason: reason,
-      updatedAt: now
-    });
+    if (result.error === "already-disposed") {
+      return res.status(400).json({
+        success: false,
+        message: "Asset is already disposed"
+      });
+    }
 
-    await batch.commit();
+    // Invalidate summaries only after the disposal transaction succeeds.
+    cache.delPrefix(`summary:${result.orgId}`);
+    cache.delPrefix("summary:super-admin");
 
-    // Audit log
-    await db.collection("asset_audit").add({
-      assetId: id,
-      action: "disposed",
-      changedBy: req.user.userId || "system",
-      orgId: asset.orgId,
-      message: `Asset disposed via ${method}: ${reason}`,
-      oldData: { status: asset.status, custodian: asset.custodian || null },
-      newData: { status: "DISPOSED", method, reason },
-      timestamp: now
-    });
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: `Asset "${asset.name}" has been disposed`,
+      message: `Asset "${result.assetName}" has been disposed`,
       disposalId: disposalRef.id,
       method,
-      valueAtDisposal: asset.currentValue || asset.value || 0,
-      proceedsAmount: proceedsAmount ? Number(proceedsAmount) : 0
+      valueAtDisposal: result.valueAtDisposal,
+      proceedsAmount: result.proceedsAmount
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
 
@@ -127,9 +212,14 @@ exports.getAssetDisposal = async (req, res) => {
       return res.status(404).json({ success: false, message: "Asset not found" });
     }
 
-    const snapshot = await db.collection("asset_disposals")
-      .where("assetId", "==", id)
-      .get();
+    const disposalsRef = db.collection("asset_disposals");
+    let query = disposalsRef.where("assetId", "==", id);
+
+    if (req.user.role !== "super-admin") {
+      query = query.where("orgId", "==", req.user.orgId);
+    }
+
+    const snapshot = await query.get();
 
     const disposals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     res.status(200).json({ success: true, assetId: id, data: disposals });
@@ -141,9 +231,12 @@ exports.getAssetDisposal = async (req, res) => {
 // Get all disposals for the org
 exports.getOrgDisposals = async (req, res) => {
   try {
-    const snapshot = await db.collection("asset_disposals")
-      .where("orgId", "==", req.user.orgId)
-      .get();
+    const disposalsRef = db.collection("asset_disposals");
+    const snapshot = req.user.role === "super-admin"
+      ? await disposalsRef.get()
+      : await disposalsRef
+          .where("orgId", "==", req.user.orgId)
+          .get();
 
     const disposals = snapshot.docs
       .map(doc => ({ id: doc.id, ...doc.data() }))
