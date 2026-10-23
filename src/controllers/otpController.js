@@ -1,4 +1,5 @@
 const { db, admin } = require("../config/firebase");
+const { JWT_SECRET } = require("../config/jwt");
 const AfricasTalking = require("africastalking");
 
 const at = AfricasTalking({
@@ -247,7 +248,7 @@ exports.verify2FALogin = async (req, res) => {
         orgId: user.orgId || null,
         name: user.name || ""
       },
-      process.env.JWT_SECRET || "secret_key",
+      JWT_SECRET,
       { expiresIn: "1d" }
     );
 

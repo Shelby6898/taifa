@@ -1,7 +1,6 @@
 const jwt = require("jsonwebtoken");
 
-const JWT_SECRET =
-  process.env.JWT_SECRET || "secret_key";
+const { JWT_SECRET } = require("../config/jwt");
 
 /*
 |--------------------------------------------------------------------------
@@ -9,11 +8,10 @@ const JWT_SECRET =
 |--------------------------------------------------------------------------
 */
 
+
 exports.authenticate = (req, res, next) => {
   try {
-
-    const authHeader =
-      req.headers.authorization;
+    const authHeader = req.headers.authorization;
 
     if (!authHeader) {
       return res.status(401).json({
@@ -22,18 +20,25 @@ exports.authenticate = (req, res, next) => {
       });
     }
 
-    const token =
-      authHeader.split(" ")[1];
+    const parts = authHeader.trim().split(/\s+/);
 
-    const decoded =
-      jwt.verify(token, JWT_SECRET);
+    if (
+      parts.length !== 2 ||
+      parts[0].toLowerCase() !== "bearer" ||
+      !parts[1]
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid authorization header"
+      });
+    }
+
+    const token = parts[1];
+    const decoded = jwt.verify(token, JWT_SECRET);
 
     req.user = decoded;
-
     next();
-
   } catch (err) {
-
     return res.status(401).json({
       success: false,
       message: "Invalid token"

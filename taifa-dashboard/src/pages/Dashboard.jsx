@@ -27,7 +27,7 @@ export default function Dashboard() {
   const user     = JSON.parse(localStorage.getItem("user") || "{}");
   const navigate = useNavigate();
   const location = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 768);
   const { org } = useOrg();
   const [unreadCount, setUnreadCount] = useState(0); // eslint-disable-line no-unused-vars
 
@@ -53,9 +53,8 @@ export default function Dashboard() {
   }
 
   const styles = {
-    wrapper:  { display: "flex", minHeight: "100vh", fontFamily: "sans-serif", background: "#f8fafc" },
-    sidebar:  { width: sidebarOpen ? 220 : 60, background: "#1e293b", display: "flex",
-                flexDirection: "column", transition: "width 0.2s", flexShrink: 0, overflow: "hidden" },
+    wrapper: { fontFamily: "sans-serif" },
+    sidebar: { background: "#1e293b" },
     logo:     { padding: "20px 16px", borderBottom: "1px solid rgba(255,255,255,0.08)",
                 display: "flex", alignItems: "center", gap: 10 },
     logoText: { color: "#fff", fontWeight: 800, fontSize: 18, whiteSpace: "nowrap",
@@ -72,10 +71,9 @@ export default function Dashboard() {
     navIcon:  { fontSize: 16, flexShrink: 0 },
     navLabel: { fontSize: 13, fontWeight: 500, opacity: sidebarOpen ? 1 : 0, transition: "opacity 0.2s" },
     footer:   { padding: "12px 8px", borderTop: "1px solid rgba(255,255,255,0.08)" },
-    main:     { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" },
-    topbar:   { background: "#fff", borderBottom: "1px solid #e2e8f0", padding: "0 24px",
-                height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" },
-    content:  { flex: 1, overflowY: "auto" },
+    main: {},
+    topbar: { background: "#fff", borderBottom: "1px solid #e2e8f0" },
+    content: {},
     userChip: { display: "flex", alignItems: "center", gap: 8, background: "#f1f5f9",
                 border: "1px solid #e2e8f0", borderRadius: 30, padding: "4px 12px 4px 4px" },
     avatar:   { width: 28, height: 28, background: "#6366f1", borderRadius: "50%",
@@ -94,9 +92,9 @@ export default function Dashboard() {
   const isHome = location.pathname === "/dashboard";
 
   return (
-    <div style={styles.wrapper}>
+    <div className="dashboard-shell" style={styles.wrapper}>
       {/* Sidebar */}
-      <div style={styles.sidebar}>
+      <aside className={`dashboard-sidebar ${sidebarOpen ? "is-open" : "is-collapsed"}`} style={styles.sidebar} aria-label="Main navigation">
         <div style={styles.logo}>
           {org?.logoUrl ? (
             <img src={org.logoUrl} alt="Organization logo" style={{ width: 26, height: 26, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />
@@ -107,29 +105,63 @@ export default function Dashboard() {
         </div>
         <nav style={styles.nav}>
           {visibleNav.map(item => (
-            <div key={item.path}
-              style={styles.navItem(location.pathname === item.path)}
-              onClick={() => navigate(item.path)}>
-              <span style={styles.navIcon}>{item.icon}</span>
+            <button
+              key={item.path}
+              type="button"
+              className="dashboard-nav-button"
+              title={!sidebarOpen ? item.label : undefined}
+              aria-current={
+                location.pathname === item.path ||
+                (item.path !== "/dashboard" && location.pathname.startsWith(item.path + "/"))
+                  ? "page"
+                  : undefined
+              }
+              style={styles.navItem(
+                location.pathname === item.path ||
+                (item.path !== "/dashboard" && location.pathname.startsWith(item.path + "/"))
+              )}
+              onClick={() => {
+                navigate(item.path);
+                if (window.innerWidth <= 768) setSidebarOpen(false);
+              }}>
+              <span style={styles.navIcon} aria-hidden="true">{item.icon}</span>
               <span style={styles.navLabel}>{item.label}</span>
-            </div>
+            </button>
           ))}
         </nav>
         <div style={styles.footer}>
-          <div style={styles.navItem(false)} onClick={logout}>
-            <span style={styles.navIcon}>🚪</span>
+          <button
+            type="button"
+            className="dashboard-nav-button"
+            style={styles.navItem(false)}
+            onClick={logout}
+            title={!sidebarOpen ? "Sign Out" : undefined}>
+            <span style={styles.navIcon} aria-hidden="true">🚪</span>
             <span style={styles.navLabel}>Sign Out</span>
-          </div>
+          </button>
         </div>
-      </div>
+      </aside>
+
+      {sidebarOpen && (
+        <button
+          type="button"
+          className="dashboard-backdrop"
+          aria-label="Close navigation menu"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
       {/* Main */}
-      <div style={styles.main}>
+      <div className="dashboard-main" style={styles.main}>
         {/* Topbar */}
-        <div style={styles.topbar}>
+        <header className="dashboard-topbar" style={styles.topbar}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button onClick={() => setSidebarOpen(!sidebarOpen)}
-              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#64748b" }}>
+            <button
+              type="button"
+              className="dashboard-menu-toggle"
+              aria-label={sidebarOpen ? "Collapse navigation" : "Open navigation"}
+              aria-expanded={sidebarOpen}
+              onClick={() => setSidebarOpen(!sidebarOpen)}>
               ☰
             </button>
             <span style={{ fontWeight: 600, color: "#1e293b", fontSize: 15 }}>
@@ -141,12 +173,12 @@ export default function Dashboard() {
             <span style={{ fontSize: 13, fontWeight: 500, color: "#1e293b" }}>{user.name}</span>
             <span style={{ fontSize: 11, color: "#94a3b8", marginLeft: 4 }}>({user.role})</span>
           </div>
-        </div>
+        </header>
 
         {/* Content */}
-        <div style={styles.content}>
+        <main className="dashboard-content" style={styles.content}>
           {isHome ? <DashboardHome /> : <Outlet />}
-        </div>
+        </main>
       </div>
     </div>
   );

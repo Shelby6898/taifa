@@ -1,5 +1,6 @@
 const { db, admin } = require("../config/firebase");
 const cache = require("../utils/cache");
+const validateCustodian = require("../utils/validateCustodian");
 
 // Assign a custodian to an asset — closes previous custody record, opens new one
 exports.assignCustodian = async (req, res) => {
@@ -24,11 +25,17 @@ exports.assignCustodian = async (req, res) => {
       return res.status(400).json({ success: false, message: "Cannot assign custodian to a disposed asset" });
     }
 
+    const validation = await validateCustodian(db, asset, custodianId, custodianName);
+    if (!validation.ok) {
+      return res.status(400).json({ success: false, message: validation.message });
+    }
+
     const now = admin.firestore.Timestamp.now();
 
     // Close any open custody record for this asset
     const openCustody = await db.collection("asset_custody_logs")
       .where("assetId", "==", id)
+      .where("orgId", "==", asset.orgId)
       .where("endDate", "==", null)
       .get();
 
@@ -100,6 +107,7 @@ exports.releaseCustodian = async (req, res) => {
     // Close open custody record
     const openCustody = await db.collection("asset_custody_logs")
       .where("assetId", "==", id)
+      .where("orgId", "==", asset.orgId)
       .where("endDate", "==", null)
       .get();
 
@@ -152,6 +160,7 @@ exports.getCustodyLog = async (req, res) => {
 
     const snapshot = await db.collection("asset_custody_logs")
       .where("assetId", "==", id)
+      .where("orgId", "==", asset.orgId)
       .get();
 
     const logs = snapshot.docs
@@ -187,6 +196,11 @@ exports.reallocateCustodian = async (req, res) => {
       return res.status(400).json({ success: false, message: "Cannot reallocate a disposed asset" });
     }
 
+    const validation = await validateCustodian(db, asset, newCustodianId, newCustodianName);
+    if (!validation.ok) {
+      return res.status(400).json({ success: false, message: validation.message });
+    }
+
     if (!asset.custodian) {
       return res.status(400).json({ success: false, message: "Asset has no current custodian to reallocate from. Use assign custodian instead." });
     }
@@ -203,6 +217,7 @@ exports.reallocateCustodian = async (req, res) => {
     // Close current custody record
     const openCustody = await db.collection("asset_custody_logs")
       .where("assetId", "==", id)
+      .where("orgId", "==", asset.orgId)
       .where("endDate", "==", null)
       .get();
 
