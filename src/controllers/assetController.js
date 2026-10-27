@@ -452,6 +452,7 @@ exports.bulkImportTemplate = async (req, res) => {
 |--------------------------------------------------------------------------
 */
 exports.bulkImportAssets = async (req, res) => {
+  let committedCount = 0;
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: "No file uploaded" });
@@ -528,6 +529,9 @@ exports.bulkImportAssets = async (req, res) => {
 
       if (opCount >= 400) {
         await batch.commit();
+        committedCount += opCount;
+        cache.delPrefix(`summary:${req.user.orgId}`);
+        cache.delPrefix("summary:super-admin");
         batch = db.batch();
         opCount = 0;
       }
@@ -535,6 +539,9 @@ exports.bulkImportAssets = async (req, res) => {
 
     if (opCount > 0) {
       await batch.commit();
+      committedCount += opCount;
+      cache.delPrefix(`summary:${req.user.orgId}`);
+      cache.delPrefix("summary:super-admin");
     }
 
     if (results.imported > 0) {
@@ -565,6 +572,11 @@ exports.bulkImportAssets = async (req, res) => {
     });
   } catch (err) {
     console.error("Bulk import error:", err);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({
+      success: false,
+      message: "Bulk import did not complete. Check assetsCommitted before retrying.",
+      assetsCommitted: committedCount,
+      workflowCompleted: false
+    });
   }
 };
