@@ -7,3 +7,5 @@ ict-ticketing-system/
 *.bak
 *.backup-*
 *.pre-*
+*.bak-*
+*review-backup-*
