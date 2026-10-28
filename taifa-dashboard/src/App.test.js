@@ -1,8 +1,18 @@
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
-test('renders learn react link', () => {
+test('renders the Taifatech asset management landing page', () => {
   render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+
+  expect(
+    screen.getByRole('heading', { name: /TAIFATECH/i })
+  ).toBeInTheDocument();
+
+  expect(
+    screen.getByText('Multi-Tenant Asset Management Platform', { exact: true })
+  ).toBeInTheDocument();
+
+  expect(
+    screen.getByRole('heading', { name: /Full Asset Lifecycle/i })
+  ).toBeInTheDocument();
 });
