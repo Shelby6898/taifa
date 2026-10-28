@@ -334,14 +334,12 @@ Historical and pre-IFMIS assets are captured through the existing **Bulk Import*
 
 ## 📱 QR Code Scanning
 
-Every asset is assigned a downloadable QR code for physical tagging. Scanning the code with any phone camera opens a public, no-login asset record page at `https://taifatech.org/assets/view/:assetId`, showing the asset's name, code, live status, type, department, ward, value, current custodian, location, and acquisition date.
+Every asset is assigned a downloadable QR code for physical tagging. Scanning the code with any phone camera opens a public, no-login asset record page at `https://taifatech.org/assets/view/:assetId`, showing the asset's name, code, live status, type, department, ward, and acquisition date. Asset value, custodian, and exact location are not displayed on the public QR page.
 
 - QR codes encode the production domain (`taifatech.org`), not a local development address, so they work correctly once printed and stuck onto physical assets.
 - The public view requires no authentication, making it suitable for field staff, auditors, or the general public verifying a county asset.
 - Status badges on the scanned page reflect the live asset state — green for ASSIGNED, amber for MAINTENANCE, grey for UNASSIGNED, and red for DISPOSED.
 - The backend route (`src/routes/publicAssets.js`) reads directly from Firestore at scan time, so the information shown is always current, not a static snapshot taken when the tag was printed.
-
----
 
 ## 🔒 Security
 

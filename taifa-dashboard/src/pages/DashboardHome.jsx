@@ -13,7 +13,6 @@ export default function DashboardHome() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const navigate = useNavigate();
   const isViewer = user.role === "viewer";
-  const isManager = user.role === "manager";
   const isAdmin = user.role === "admin";
   const { org } = useOrg();
 
@@ -113,14 +112,14 @@ export default function DashboardHome() {
   const ticketsByCategory = Object.values(ticketCatMap);
 
   const styles = {
-    container:  { padding: "24px", fontFamily: "sans-serif" },
+    container:  { padding: "clamp(14px, 3vw, 24px)", fontFamily: "sans-serif", minWidth: 0 },
     welcomeRow: { display: "flex", alignItems: "center", gap: 14, marginBottom: 24 },
     welcomeLogo: { width: 48, height: 48, borderRadius: 10, objectFit: "cover", border: "1px solid #e2e8f0", flexShrink: 0 },
     welcome:    { marginBottom: 0 },
     title:      { fontSize: 22, fontWeight: 700, color: "#1e293b", marginBottom: 4 },
     sub:        { color: "#64748b", fontSize: 14 },
-    grid4:      { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 12, marginBottom: 24 },
-    grid2:      { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 },
+    grid4:      { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,130px),1fr))", gap: 12, marginBottom: 24 },
+    grid2:      { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,320px),1fr))", gap: 16, marginBottom: 24 },
     grid3:      { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 12, marginBottom: 24 },
     statCard:   (color) => ({ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16, borderTop: `3px solid ${color}` }),
     statLabel:  { fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", marginBottom: 6 },
@@ -457,7 +456,7 @@ export default function DashboardHome() {
           { path:"assets",       icon:"🏛️", label:"Assets",        color:"#6366f1" },
           !isViewer && { path:"transfers",    icon:"🔄", label:"Transfers",     color:"#10b981" },
           { path:"maintenance",  icon:"🔧", label:"Maintenance",   color:"#f59e0b" },
-          { path:"depreciation", icon:"📉", label:"Depreciation",  color:"#ef4444" },
+          !isViewer && { path:"depreciation", icon:"📉", label:"Depreciation",  color:"#ef4444" },
           { path:"reports",      icon:"📈", label:"Reports",       color:"#8b5cf6" },
           { path:"ict-helpdesk", icon:"🎫", label:"Taifa Helpdesk",  color:"#22d3ee" },
         ].filter(Boolean).map(item => (

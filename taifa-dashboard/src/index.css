@@ -11,3 +11,133 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+
+/* Taifatech dashboard responsive shell */
+.dashboard-shell {
+  display: flex;
+  min-height: 100vh;
+  min-width: 0;
+  background: #f8fafc;
+  color: #1e293b;
+}
+
+.dashboard-sidebar {
+  width: 220px;
+  min-width: 0;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 180ms ease, transform 180ms ease;
+  z-index: 1000;
+}
+
+.dashboard-sidebar.is-collapsed {
+  width: 60px;
+}
+
+.dashboard-sidebar .dashboard-nav-button {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+}
+
+.dashboard-nav-button:focus-visible,
+.dashboard-menu-toggle:focus-visible {
+  outline: 3px solid #a5b4fc;
+  outline-offset: 2px;
+}
+
+.dashboard-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100vh;
+}
+
+.dashboard-topbar {
+  box-sizing: border-box;
+  min-height: 60px;
+  padding: 10px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dashboard-menu-toggle {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.dashboard-content {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+}
+
+.dashboard-backdrop {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .dashboard-sidebar,
+  .dashboard-sidebar.is-collapsed {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(280px, 86vw);
+    height: 100vh;
+    height: 100dvh;
+    overflow-y: auto;
+    transform: translateX(-105%);
+    box-shadow: none;
+  }
+
+  .dashboard-sidebar.is-open {
+    transform: translateX(0);
+    box-shadow: 12px 0 36px rgba(15, 23, 42, 0.22);
+  }
+
+  .dashboard-sidebar.is-collapsed {
+    width: min(280px, 86vw);
+  }
+
+  .dashboard-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    border: 0;
+    background: rgba(15, 23, 42, 0.48);
+    cursor: pointer;
+  }
+
+  .dashboard-main {
+    width: 100%;
+    min-height: 100vh;
+  }
+
+  .dashboard-topbar {
+    padding: 8px 12px;
+    flex-wrap: wrap;
+  }
+
+  .dashboard-content {
+    overflow-x: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-sidebar {
+    transition: none;
+  }
+}
