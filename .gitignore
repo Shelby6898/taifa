@@ -3,3 +3,7 @@ node_modules
 serviceAccountKey.json
 ict-ticketing-system/
 
+# local backups
+*.bak
+*.backup-*
+*.pre-*
