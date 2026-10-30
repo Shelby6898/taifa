@@ -1,11 +1,7 @@
-// jest-dom adds custom jest matchers for asserting on DOM nodes.
-// allows you to do things like:
-// expect(element).toHaveTextContent(/react/i)
-// learn more: https://github.com/testing-library/jest-dom
-import '@testing-library/jest-dom';
+import '@testing-library/jest-dom/vitest';
 
-// Provide Web Text APIs required by jsPDF dependencies in Jest.
-const { TextEncoder, TextDecoder } = require('util');
+// jsPDF dependencies need the Web Text APIs, which jsdom does not provide.
+import { TextEncoder, TextDecoder } from 'node:util';
 
-global.TextEncoder = global.TextEncoder || TextEncoder;
-global.TextDecoder = global.TextDecoder || TextDecoder;
+globalThis.TextEncoder = globalThis.TextEncoder || TextEncoder;
+globalThis.TextDecoder = globalThis.TextDecoder || TextDecoder;
