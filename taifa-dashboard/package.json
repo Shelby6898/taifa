@@ -20,7 +20,9 @@
     "react-router-dom": "7.18.4",
     "recharts": "^3.8.1",
     "web-vitals": "^2.1.4",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "vite": "8.3.4",
+    "@vitejs/plugin-react": "6.1.2"
   },
   "scripts": {
     "start": "vite",
@@ -45,9 +47,7 @@
     "@tootallnate/once": "2.0.1"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "6.1.2",
     "jsdom": "30.1.3",
-    "vite": "8.3.4",
     "vitest": "5.0.5"
   }
 }
