@@ -7,6 +7,8 @@ const { sendEmail } = require("../../services/email");
 
 const { JWT_SECRET } = require("../../config/jwt");
 
+const ASSIGNABLE_ROLES = ["admin", "manager", "viewer"];
+
 /*
 |--------------------------------------------------------------------------
 | REGISTER USER
@@ -23,6 +25,10 @@ exports.register = async (req, res) => {
       role,
       department
     } = req.body;
+
+    if (role !== undefined && !ASSIGNABLE_ROLES.includes(role)) {
+      return res.status(400).json({ success: false, message: "Invalid role" });
+    }
 
     const existing =
       await db.collection("users")
@@ -243,6 +249,10 @@ exports.updateUser = async (req, res) => {
     // Prevent any user from changing their own role or department
     if (id === req.user.userId && (role || department)) {
       return res.status(400).json({ success: false, message: "You cannot change your own role or department. Ask another admin to make this change." });
+    }
+
+    if (role !== undefined && !ASSIGNABLE_ROLES.includes(role)) {
+      return res.status(400).json({ success: false, message: "Invalid role" });
     }
 
     const newRole = role || oldData.role;
