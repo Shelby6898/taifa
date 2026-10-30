@@ -3,7 +3,7 @@ import Welcome from "./pages/Welcome.jsx";
 import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/Dashboard";
 import Assets from "./pages/Assets";
-import Transfers from "./pages/Transfers.js";
+import Transfers from "./pages/Transfers";
 import Maintenance from "./pages/Maintenance";
 import Reports from "./pages/Reports";
 import Users from "./pages/Users.jsx";
@@ -19,7 +19,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Categories from "./pages/Categories.jsx";
 import CheckInOut from "./pages/CheckInOut.jsx";
 import Disposals from "./pages/Disposals.jsx";
-import Profile from "./pages/Profile.js";
+import Profile from "./pages/Profile";
 import AssetRequests from "./pages/AssetRequests.jsx";
 
 export default function App() {

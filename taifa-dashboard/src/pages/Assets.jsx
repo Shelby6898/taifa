@@ -333,7 +333,7 @@ export default function Assets() {
   };
 
   const getQRData = (asset) => {
-    return `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace("/api","") : "https://taifatech.org"}/assets/view/${asset.assetId}`;
+    return `${import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace("/api","") : "https://taifatech.org"}/assets/view/${asset.assetId}`;
   };
 
   if (loading) return <p style={{ padding: 20 }}>Loading assets...</p>;
