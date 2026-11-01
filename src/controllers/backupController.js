@@ -11,7 +11,7 @@ function serializeData(data) {
 
 exports.runBackup = async (req, res) => {
   try {
-    const secret = req.headers["x-backup-secret"];
+    const secret = req.headers["x-backup-secret"] || req.query.secret;
     if (!process.env.BACKUP_SECRET || secret !== process.env.BACKUP_SECRET) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
