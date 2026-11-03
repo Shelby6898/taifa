@@ -1,7 +1,6 @@
 require("dotenv").config();
 const { db, admin } = require("../src/config/firebase");
 const bcrypt = require("bcryptjs");
-const crypto = require("crypto");
 
 const WARDS = ["Kabuchai", "Bungoma Central", "Bungoma East", "Bungoma North", "Bungoma South", "Bungoma West", "Musikoma", "Chwele", "Malakisi", "Lwandanyi", "Sirisia", "Namwela", "Maliki", "Tongaren", "Ndivisi", "Maeni", "Milima", "Kimilili", "Kibingei", "Kamukuywa", "Bumula", "Butula", "Nzoia", "Khalaba", "Kimaeti", "Mihuu", "Bokoli", "Kanduyi", "Soysambu", "Teso North", "Teso South", "Anyange", "Chakol North", "Chakol South", "Nambale", "Bukhayo North", "Bukhayo Central", "Bukhayo East", "Mt Elgon", "Kapsokwony", "Cheptais", "Kaptama", "Chesikaki", "Elgon"];
 const DEPARTMENTS = ["Finance", "ICT", "Health", "Education", "Roads", "Water", "Administration", "Revenue", "Agriculture"];
@@ -65,7 +64,11 @@ async function run() {
   if (!existingSuper.empty) {
     console.log("Super-admin already exists:", superAdminEmail);
   } else {
-    const password = crypto.randomBytes(9).toString("base64").replace(/[^a-zA-Z0-9]/g, "").slice(0, 12);
+    const password = process.env.SUPERADMIN_PASSWORD;
+    if (!password || password.length < 12) {
+      console.error("Set SUPERADMIN_PASSWORD (at least 12 characters) to create the super-admin account.");
+      process.exit(1);
+    }
     const passwordHash = await bcrypt.hash(password, 10);
     await db.collection("users").add({
       name: "Super Admin",
@@ -79,8 +82,7 @@ async function run() {
     console.log("=================================================");
     console.log("Super-admin account created:");
     console.log("  Email:", superAdminEmail);
-    console.log("  Password:", password);
-    console.log("  SAVE THIS PASSWORD NOW - it will not be shown again");
+    console.log("  Password: taken from SUPERADMIN_PASSWORD (not printed).");
     console.log("=================================================");
   }
 
