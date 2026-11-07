@@ -186,7 +186,8 @@ exports.approveRequest = async (req, res) => {
         : `Your request for ${request.assetType} has been approved. An asset will be assigned to you shortly.`,
       department: request.department,
       orgId: request.orgId,
-      triggeredBy: req.user.name
+      triggeredBy: req.user.name,
+      targetUserId: request.requestedBy
     });
 
     res.status(200).json({
@@ -243,7 +244,8 @@ exports.rejectRequest = async (req, res) => {
       message: `Your request for ${request.assetType} was rejected. Reason: ${rejectedReason}`,
       department: request.department,
       orgId: request.orgId,
-      triggeredBy: req.user.name
+      triggeredBy: req.user.name,
+      targetUserId: request.requestedBy
     });
 
     res.status(200).json({ success: true, message: "Request rejected" });
