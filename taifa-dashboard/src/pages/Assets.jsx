@@ -102,7 +102,6 @@ export default function Assets() {
     }
   };
 
-  // eslint-disable-next-line no-unused-vars
   const handleReleaseCustodian = async (assetId) => {
     if (!window.confirm("Release custodian from this asset?")) return;
     try {
@@ -532,6 +531,9 @@ export default function Assets() {
               )}
               {(isAdmin || isManager) && asset.custodian && asset.status !== "DISPOSED" && (
                 <button style={styles.reallocateBtn} onClick={() => setReallocateModal(asset)}>🔁 Reallocate</button>
+              )}
+              {isAdmin && asset.custodian && asset.status === "ASSIGNED" && (
+                <button style={styles.reallocateBtn} onClick={() => handleReleaseCustodian(asset.assetId)}>↩️ Release</button>
               )}
             </div>
           </div>
