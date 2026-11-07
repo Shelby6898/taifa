@@ -115,7 +115,10 @@ exports.getValuationLog = async (req, res) => {
 exports.runDailyValuation = async (req, res) => {
   try {
     // Validate backup secret so only cron can call this
-    const secret = req.headers["x-backup-secret"] || req.query.secret;
+    if (!process.env.BACKUP_SECRET) {
+      return res.status(500).json({ success: false, message: "Server not configured" });
+    }
+    const secret = req.headers["x-backup-secret"];
     if (secret !== process.env.BACKUP_SECRET) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
