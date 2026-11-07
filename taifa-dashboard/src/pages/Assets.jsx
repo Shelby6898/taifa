@@ -506,7 +506,7 @@ export default function Assets() {
               </div>
               {asset.custodian && <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>👤 {asset.custodian}</div>}
             </div>
-            <div style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <div style={{ display: "flex", gap: 6, flexShrink: 1, minWidth: 0, maxWidth: "100%", flexWrap: "wrap", justifyContent: "flex-end" }}>
               <button style={styles.qrBtn} onClick={() => setQrAsset(asset)}>QR</button>
               <button style={styles.logBtn} onClick={() => loadCustodyLog(asset)}>📋 Log</button>
               {canEdit && !canView && asset.status !== "DISPOSED" && (
