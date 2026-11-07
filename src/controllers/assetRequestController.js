@@ -269,3 +269,84 @@ exports.getPendingCount = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// Admin/Manager attaches an asset to an already-approved request that has none
+exports.assignAsset = async (req, res) => {
+  try {
+    const { assetId } = req.body;
+    if (!assetId) return res.status(400).json({ success: false, message: "assetId is required" });
+
+    const docRef = db.collection("asset_requests").doc(req.params.id);
+    const doc = await docRef.get();
+    if (!doc.exists) return res.status(404).json({ success: false, message: "Request not found" });
+
+    const request = doc.data();
+    if (request.orgId !== req.user.orgId) {
+      return res.status(404).json({ success: false, message: "Request not found" });
+    }
+    if (request.status !== "APPROVED" || request.assignedAssetId) {
+      return res.status(400).json({ success: false, message: "Only approved requests without an asset can be assigned" });
+    }
+    if (req.user.role === "manager" && request.department !== req.user.department) {
+      return res.status(403).json({ success: false, message: "You can only assign for your department" });
+    }
+
+    const assetDoc = await db.collection("assets").doc(assetId).get();
+    if (!assetDoc.exists) return res.status(404).json({ success: false, message: "Asset not found" });
+    const asset = assetDoc.data();
+    if (asset.orgId !== req.user.orgId) return res.status(404).json({ success: false, message: "Asset not found" });
+    if (asset.status === "DISPOSED") return res.status(400).json({ success: false, message: "Cannot assign a disposed asset" });
+    if (asset.status === "ASSIGNED") return res.status(400).json({ success: false, message: "Asset is already assigned" });
+
+    const now = admin.firestore.Timestamp.now();
+    const batch = db.batch();
+
+    const openCustody = await db.collection("asset_custody_logs")
+      .where("assetId", "==", assetId)
+      .where("endDate", "==", null)
+      .get();
+    openCustody.docs.forEach(d => batch.update(d.ref, { endDate: now }));
+
+    batch.set(db.collection("asset_custody_logs").doc(), {
+      assetId,
+      orgId: asset.orgId,
+      custodianId: request.requestedBy,
+      custodianName: request.requestedByName,
+      startDate: now,
+      endDate: null,
+      purpose: request.description,
+      type: "REQUEST_APPROVED",
+      createdAt: now
+    });
+
+    batch.update(db.collection("assets").doc(assetId), {
+      custodian: request.requestedByName,
+      custodianId: request.requestedBy,
+      status: "ASSIGNED",
+      previousStatus: asset.status,
+      updatedAt: now
+    });
+
+    batch.update(docRef, {
+      assignedAssetId: assetId,
+      assignedAssetName: asset.name,
+      updatedAt: now
+    });
+
+    await batch.commit();
+
+    await createNotification({
+      type: "asset_request_assigned",
+      title: "Asset Assigned",
+      message: `${asset.name} has been assigned to you for your ${request.assetType} request.`,
+      department: request.department,
+      orgId: request.orgId,
+      triggeredBy: req.user.name,
+      targetUserId: request.requestedBy
+    });
+
+    res.status(200).json({ success: true, message: `${asset.name} assigned to ${request.requestedByName}`, assignedAssetName: asset.name });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

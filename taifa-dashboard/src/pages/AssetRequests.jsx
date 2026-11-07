@@ -24,6 +24,7 @@ export default function AssetRequests() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [approveModal, setApproveModal] = useState(null);
+  const [assignModal, setAssignModal] = useState(null);
   const [rejectModal, setRejectModal] = useState(null);
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -91,6 +92,28 @@ export default function AssetRequests() {
       loadAssets();
     } catch (err) {
       setMessage("❌ " + (err.response?.data?.message || "Failed to approve"));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleAssign = async () => {
+    if (!selectedAssetId) {
+      setMessage("❌ Please select an asset to assign.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await api.patch(`/asset-requests/${assignModal.id}/assign`, {
+        assetId: selectedAssetId
+      });
+      setMessage("✅ Asset assigned successfully!");
+      setAssignModal(null);
+      setSelectedAssetId("");
+      loadRequests();
+      loadAssets();
+    } catch (err) {
+      setMessage("❌ " + (err.response?.data?.message || "Failed to assign"));
     } finally {
       setSubmitting(false);
     }
@@ -232,6 +255,11 @@ export default function AssetRequests() {
                 <div style={{ marginTop: 6, fontSize: 12, color: "#16a34a" }}>
                   ✅ Approved by {req.approvedByName}
                   {req.assignedAssetName && ` — Asset assigned: ${req.assignedAssetName}`}
+                  {!req.assignedAssetName && (isManager || isAdmin) && (
+                    <button style={{ ...styles.approveBtn, marginLeft: 8, padding: "4px 10px", fontSize: 12 }} onClick={() => { setAssignModal(req); setSelectedAssetId(""); }}>
+                      Assign asset
+                    </button>
+                  )}
                 </div>
               )}
               {req.status === "REJECTED" && (
@@ -289,6 +317,44 @@ export default function AssetRequests() {
                 {submitting ? "Approving..." : "Confirm Approval"}
               </button>
               <button style={styles.cancelBtn} onClick={() => setApproveModal(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Modal */}
+      {assignModal && (
+        <div style={styles.overlay}>
+          <div style={styles.modal}>
+            <h3 style={{ margin: 0 }}>Assign Asset</h3>
+            <p style={{ margin: "8px 0 4px", fontSize: 13, color: "#374151" }}>
+              <strong>{assignModal.requestedByName}</strong> requested: {assignModal.assetType}
+            </p>
+            <p style={{ margin: "0 0 12px", fontSize: 12, color: "#6b7280" }}>{assignModal.description}</p>
+
+            <label style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
+              Select an available asset:
+            </label>
+            <select style={{ ...styles.input, marginTop: 6 }} value={selectedAssetId} onChange={e => setSelectedAssetId(e.target.value)}>
+              <option value="">-- Select asset</option>
+              {assets.map(a => (
+                <option key={a.assetId} value={a.assetId}>
+                  {a.name} — {a.assetCode} (KES {(a.value || 0).toLocaleString()})
+                </option>
+              ))}
+            </select>
+
+            {assets.length === 0 && (
+              <p style={{ fontSize: 12, color: "#f59e0b", margin: "6px 0" }}>
+                ⚠️ No available assets right now. Create an unassigned asset first.
+              </p>
+            )}
+
+            <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+              <button style={styles.approveBtn} onClick={handleAssign} disabled={submitting}>
+                {submitting ? "Assigning..." : "Confirm Assignment"}
+              </button>
+              <button style={styles.cancelBtn} onClick={() => setAssignModal(null)}>Cancel</button>
             </div>
           </div>
         </div>

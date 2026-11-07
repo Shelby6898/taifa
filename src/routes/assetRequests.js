@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const {
   createRequest, getRequests, getRequest,
-  approveRequest, rejectRequest, getPendingCount
+  approveRequest, rejectRequest, getPendingCount, assignAsset
 } = require("../controllers/assetRequestController");
 const { authenticate, authorizeRoles, authorizeWrite } = require("../middleware/authMiddleware");
 
@@ -15,5 +15,6 @@ router.get("/:id", getRequest);
 router.post("/", createRequest); // all roles can request
 router.patch("/:id/approve", authorizeWrite("admin", "manager"), approveRequest);
 router.patch("/:id/reject", authorizeWrite("admin", "manager"), rejectRequest);
+router.patch("/:id/assign", authorizeWrite("admin", "manager"), assignAsset);
 
 module.exports = router;
