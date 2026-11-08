@@ -20,6 +20,7 @@ exports.createRequest = async (req, res) => {
       orgId: req.user.orgId,
       requestedBy: req.user.userId,
       requestedByName: req.user.name,
+      requesterRole: req.user.role,
       department: req.user.department,
       assetType,
       description,
@@ -116,6 +117,9 @@ exports.approveRequest = async (req, res) => {
     // Manager can only approve requests from their department
     if (req.user.role === "manager" && request.department !== req.user.department) {
       return res.status(403).json({ success: false, message: "You can only approve requests from your department" });
+    }
+    if (req.user.role === "manager" && (request.requesterRole === "manager" || request.requestedBy === req.user.userId)) {
+      return res.status(403).json({ success: false, message: "Requests from managers are handled by admin only" });
     }
 
     const now = admin.firestore.Timestamp.now();
@@ -227,6 +231,9 @@ exports.rejectRequest = async (req, res) => {
     if (req.user.role === "manager" && request.department !== req.user.department) {
       return res.status(403).json({ success: false, message: "You can only reject requests from your department" });
     }
+    if (req.user.role === "manager" && (request.requesterRole === "manager" || request.requestedBy === req.user.userId)) {
+      return res.status(403).json({ success: false, message: "Requests from managers are handled by admin only" });
+    }
 
     const now = admin.firestore.Timestamp.now();
     await docRef.update({
@@ -291,6 +298,9 @@ exports.assignAsset = async (req, res) => {
     }
     if (req.user.role === "manager" && request.department !== req.user.department) {
       return res.status(403).json({ success: false, message: "You can only assign for your department" });
+    }
+    if (req.user.role === "manager" && (request.requesterRole === "manager" || request.requestedBy === req.user.userId)) {
+      return res.status(403).json({ success: false, message: "Requests from managers are handled by admin only" });
     }
 
     const assetDoc = await db.collection("assets").doc(assetId).get();
