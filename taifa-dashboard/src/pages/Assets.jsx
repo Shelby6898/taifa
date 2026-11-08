@@ -348,7 +348,7 @@ export default function Assets() {
               {showBulkImport ? "Cancel Import" : "📥 Bulk Import"}
             </button>
           )}
-          {canEdit && (
+          {isAdmin && (
             <button style={styles.btn} onClick={() => { setShowForm(!showForm); setMessage(""); resetForm(); }}>
               {showForm ? "Cancel" : "+ New Asset"}
             </button>

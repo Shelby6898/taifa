@@ -28,7 +28,7 @@ router.get("/:id/history", getAssetHistory);
 router.get("/:id", getAsset);
 router.get("/", getAssets);
 
-router.post("/", authorizeWrite("admin", "manager"), createAsset);
+router.post("/", authorizeWrite("admin"), createAsset);
 router.put("/:id", authorizeWrite("admin", "manager"), updateAsset);
 router.post("/:id/transfer", authorizeWrite("admin", "manager"), transferAsset);
 router.delete("/:id", authorizeWrite("admin"), deleteAsset);
