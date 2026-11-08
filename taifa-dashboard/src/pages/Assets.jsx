@@ -102,6 +102,35 @@ export default function Assets() {
     }
   };
 
+  const handleShareLocation = (asset) => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (!navigator.geolocation) {
+      setMessage("❌ This device or browser cannot share location.");
+      return;
+    }
+    setMessage("📍 Getting your location...");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          await api.post(`/assets/${asset.assetId}/location`, {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy
+          });
+          setMessage("✅ Location shared for " + asset.name);
+        } catch (err) {
+          setMessage("❌ " + (err.response?.data?.message || "Failed to share location"));
+        }
+      },
+      (err) => {
+        setMessage("❌ " + (err.code === 1
+          ? "Location permission was refused. Allow location for this site and try again."
+          : "Could not get your location. Check that location is on and try again."));
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    );
+  };
+
   const handleReleaseCustodian = async (assetId) => {
     if (!window.confirm("Release custodian from this asset?")) return;
     try {
@@ -534,6 +563,9 @@ export default function Assets() {
               )}
               {isAdmin && asset.custodian && asset.status === "ASSIGNED" && (
                 <button style={styles.reallocateBtn} onClick={() => handleReleaseCustodian(asset.assetId)}>↩️ Release</button>
+              )}
+              {asset.custodian && asset.status !== "DISPOSED" && asset.status !== "DEACTIVATED" && user.role !== "super-admin" && (asset.custodianId ? asset.custodianId === user.id : asset.custodian === user.name) && (
+                <button style={styles.reallocateBtn} onClick={() => handleShareLocation(asset)}>📍 Share location</button>
               )}
             </div>
           </div>

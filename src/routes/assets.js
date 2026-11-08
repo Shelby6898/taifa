@@ -11,6 +11,7 @@ const {
 } = require("../controllers/assetController");
 const { authenticate, authorizeRoles, authorizeWrite } = require("../middleware/authMiddleware");
 const { assignCustodian, releaseCustodian, getCustodyLog, reallocateCustodian, deactivateAsset, activateAsset } = require("../controllers/custodyController");
+const { reportLocation, getLocations } = require("../controllers/locationController");
 
 // Apply auth to all routes
 router.use(authenticate);
@@ -20,6 +21,7 @@ router.get("/analytics/departments", getDepartmentAnalytics);
 router.get("/analytics/top-value", getTopAssetsByValue);
 router.get("/analytics/monthly-acquisitions", getMonthlyAcquisitions);
 router.get("/analytics/department-monthly-trends", getDepartmentMonthlyTrends);
+router.get("/locations", getLocations);
 
 router.get("/bulk-import/template", bulkImportTemplate);
 router.post("/bulk-import", authorizeWrite("admin"), upload.single("file"), bulkImportAssets);
@@ -37,6 +39,7 @@ router.post("/:id/custodian", authorizeWrite("admin", "manager"), assignCustodia
 router.delete("/:id/custodian", authorizeWrite("admin"), releaseCustodian);
 router.get("/:id/custody-log", getCustodyLog);
 router.post("/:id/reallocate", authorizeWrite("admin", "manager"), reallocateCustodian);
+router.post("/:id/location", authorizeWrite("admin", "manager", "viewer"), reportLocation);
 router.post("/:id/deactivate", authorizeWrite("admin"), deactivateAsset);
 router.post("/:id/activate", authorizeWrite("admin"), activateAsset);
 
