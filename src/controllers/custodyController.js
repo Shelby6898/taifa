@@ -20,6 +20,9 @@ exports.assignCustodian = async (req, res) => {
     if (asset.orgId !== req.user.orgId && req.user.role !== "super-admin") {
       return res.status(404).json({ success: false, message: "Asset not found" });
     }
+    if (req.user.role === "manager" && req.user.department && asset.department !== req.user.department) {
+      return res.status(403).json({ success: false, message: "You can only manage assets in your department" });
+    }
 
     if (asset.status === "DISPOSED") {
       return res.status(400).json({ success: false, message: "Cannot assign custodian to a disposed asset" });
@@ -190,6 +193,9 @@ exports.reallocateCustodian = async (req, res) => {
     const asset = assetDoc.data();
     if (asset.orgId !== req.user.orgId && req.user.role !== "super-admin") {
       return res.status(404).json({ success: false, message: "Asset not found" });
+    }
+    if (req.user.role === "manager" && req.user.department && asset.department !== req.user.department) {
+      return res.status(403).json({ success: false, message: "You can only manage assets in your department" });
     }
 
     if (asset.status === "DISPOSED") {
