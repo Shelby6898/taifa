@@ -21,6 +21,7 @@ import CheckInOut from "./pages/CheckInOut.jsx";
 import Disposals from "./pages/Disposals.jsx";
 import Profile from "./pages/Profile";
 import AssetRequests from "./pages/AssetRequests.jsx";
+import MapPage from "./pages/Map.jsx";
 
 export default function App() {
   return (
@@ -47,6 +48,7 @@ export default function App() {
           <Route path="disposals" element={<Disposals />} />
           <Route path="profile" element={<Profile />} />
           <Route path="asset-requests" element={<AssetRequests />} />
+          <Route path="map" element={<MapPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -20,6 +20,7 @@ const navItems = [
   { path: "/dashboard/categories",   icon: "🗂️", label: "Categories",  adminOnly: true },
   { path: "/dashboard/checkinout",   icon: "🔄", label: "Check In/Out", hideViewer: true },
   { path: "/dashboard/asset-requests", icon: "📋", label: "Asset Requests" },
+  { path: "/dashboard/map", icon: "🗺️", label: "Asset Map" },
   { path: "/dashboard/disposals",    icon: "🗑️", label: "Disposals",   adminOnly: true },
 ];
 
