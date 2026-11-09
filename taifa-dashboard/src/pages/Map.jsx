@@ -82,7 +82,7 @@ export default function MapPage() {
   }, [items]);
 
   return (
-    <div>
+    <div style={{ padding: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
         <h2 style={{ margin: 0 }}>🗺️ Asset Map</h2>
         <button style={styles.btn} onClick={load} disabled={loading}>{loading ? "Loading..." : "Refresh"}</button>
